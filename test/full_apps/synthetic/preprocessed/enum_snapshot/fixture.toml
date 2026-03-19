@@ -1,0 +1,9 @@
+name = "enum_snapshot"
+mode = "preprocessed"
+flavor = "gnu"
+entry = "main.i"
+expected = "parse_ok"
+source = "synthetic"
+license = "repo"
+notes = "Pinned preprocessed snapshot with line directives and expanded declarations."
+tags = ["synthetic", "preprocessed", "single_file"]

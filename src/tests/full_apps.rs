@@ -29,6 +29,7 @@ enum AppFlavor {
 enum AppMode {
     TranslationUnit,
     Driver,
+    Preprocessed,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -59,6 +60,7 @@ impl FullAppCase {
                 mode = match value {
                     "translation_unit" => AppMode::TranslationUnit,
                     "driver" => AppMode::Driver,
+                    "preprocessed" => AppMode::Preprocessed,
                     _ => panic!("{}: unsupported mode `{}`", manifest_path.display(), value),
                 };
             }
@@ -132,6 +134,14 @@ impl FullAppCase {
                     .map(|_| ())
                     .map_err(driver_error_to_parse_error)
             }
+            AppMode::Preprocessed => {
+                let mut config = config_for(self.flavor);
+                config.flavor = flavor_for(self.flavor);
+                let source = read_file(&source_path).expect("reading preprocessed full app source");
+                driver::parse_preprocessed(&config, source)
+                    .map(|_| ())
+                    .map_err(syntax_error_to_parse_error)
+            }
         }
     }
 
@@ -189,6 +199,15 @@ fn driver_error_to_parse_error(error: driver::Error) -> parser::ParseError {
         driver::Error::PreprocessorError(err) => {
             panic!("preprocessor error: {}", err);
         }
+    }
+}
+
+fn syntax_error_to_parse_error(error: driver::SyntaxError) -> parser::ParseError {
+    parser::ParseError {
+        line: error.line,
+        column: error.column,
+        offset: error.offset,
+        expected: error.expected,
     }
 }
 
@@ -263,4 +282,16 @@ fn full_app_parse_error_expectation_is_supported() {
         (AppExpected::ParseError, Err(_)) => true,
         _ => false,
     });
+}
+
+#[test]
+fn full_app_manifest_supports_preprocessed_mode() {
+    let case = FullAppCase::from_dir(PathBuf::from(
+        "test/full_apps/synthetic/preprocessed/enum_snapshot",
+    ))
+    .expect("loading preprocessed full app fixture");
+
+    assert!(matches!(case.mode, AppMode::Preprocessed));
+    assert_eq!(case.entry, PathBuf::from("main.i"));
+    assert!(case.tags.iter().any(|tag| tag == "preprocessed"));
 }
