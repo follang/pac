@@ -1,19 +1,20 @@
 use std::env;
-use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::fs::DirEntry;
 use std::fs::File;
 use std::io;
 use std::io::stdout;
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::mem;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::env::Env;
 use crate::parser;
 use crate::print::Printer;
 use crate::span::Span;
 use crate::visit::Visit;
+
+use super::support::filter_entry;
 
 struct Case {
     path: PathBuf,
@@ -249,13 +250,9 @@ impl Kind {
 
 #[derive(Debug)]
 enum Pragma {
-    /// Enable gnu extensions
     Gnu,
-    // Enable clang extensions
     Clang,
-    /// Define typename
     Typedef(String),
-    /// Assert argument is a typename
     IsTypename(String),
 }
 
@@ -282,124 +279,6 @@ impl Pragma {
     }
 }
 
-fn filter_entry(a: &DirEntry, filter: Option<&OsString>) -> bool {
-    let path = a.path();
-    let name = match path.file_name().and_then(OsStr::to_str) {
-        Some(name) => name,
-        None => return false,
-    };
-    if name.starts_with('.') || name.ends_with('~') {
-        return false;
-    }
-    if let Some(filter) = filter.and_then(|s| s.to_str()) {
-        return name.starts_with(filter);
-    }
-
-    true
-}
-
-struct FullAppCase {
-    path: PathBuf,
-    flavor: AppFlavor,
-    entry: PathBuf,
-}
-
-#[derive(Copy, Clone)]
-enum AppFlavor {
-    Core,
-    Gnu,
-    Clang,
-}
-
-impl FullAppCase {
-    fn from_dir(path: PathBuf) -> io::Result<FullAppCase> {
-        let manifest_path = path.join("fixture.toml");
-        let manifest = read_file(&manifest_path)?;
-
-        let mut flavor = AppFlavor::Core;
-        let mut entry = None;
-
-        for line in manifest.lines() {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                continue;
-            }
-
-            if let Some(value) = manifest_value(line, "flavor") {
-                flavor = match value {
-                    "core" | "std" => AppFlavor::Core,
-                    "gnu" => AppFlavor::Gnu,
-                    "clang" => AppFlavor::Clang,
-                    _ => panic!("{}: unsupported flavor `{}`", manifest_path.display(), value),
-                };
-            }
-
-            if let Some(value) = manifest_value(line, "entry") {
-                entry = Some(PathBuf::from(value));
-            }
-        }
-
-        Ok(FullAppCase {
-            path: path,
-            flavor: flavor,
-            entry: entry.unwrap_or_else(|| PathBuf::from("main.c")),
-        })
-    }
-
-    fn run(&self) -> Result<(), parser::ParseError> {
-        let source_path = self.path.join(&self.entry);
-        let source = read_file(&source_path).expect("reading full app source");
-        let mut env = match self.flavor {
-            AppFlavor::Core => Env::with_core(),
-            AppFlavor::Gnu => Env::with_gnu(),
-            AppFlavor::Clang => Env::with_clang(),
-        };
-
-        parser::translation_unit(source.trim_end(), &mut env).map(|_| ())
-    }
-}
-
-fn manifest_value<'a>(line: &'a str, key: &str) -> Option<&'a str> {
-    let prefix = format!("{} = ", key);
-    if !line.starts_with(&prefix) {
-        return None;
-    }
-
-    let value = line[prefix.len()..].trim();
-    if value.len() < 2 || !value.starts_with('"') || !value.ends_with('"') {
-        return None;
-    }
-
-    Some(&value[1..value.len() - 1])
-}
-
-fn read_file(path: &Path) -> io::Result<String> {
-    let mut file = File::open(path)?;
-    let mut content = String::new();
-    file.read_to_string(&mut content)?;
-    Ok(content)
-}
-
-fn collect_full_app_cases(root: &Path, cases: &mut Vec<FullAppCase>) {
-    if root.join("fixture.toml").is_file() {
-        cases.push(FullAppCase::from_dir(root.to_path_buf()).expect("loading full app fixture"));
-        return;
-    }
-
-    let entries = match fs::read_dir(root) {
-        Ok(entries) => entries,
-        Err(_) => return,
-    };
-
-    for entry in entries {
-        let entry = entry.expect("reading full app directory entry");
-        let path = entry.path();
-        if path.is_dir() {
-            collect_full_app_cases(&path, cases);
-        }
-    }
-}
-
 #[test]
 fn reftest_main() {
     let mut cases = Vec::new();
@@ -421,23 +300,6 @@ fn reftest_main() {
     let failed = cases.iter().filter(|c| !c.run()).count();
     if failed > 0 {
         panic!("{} cases failed", failed);
-    }
-}
-
-#[test]
-fn full_app_main() {
-    let mut cases = Vec::new();
-    collect_full_app_cases(Path::new("test/full_apps"), &mut cases);
-    assert!(!cases.is_empty(), "expected at least one full app fixture");
-
-    let failed = cases
-        .iter()
-        .filter(|case| case.run().is_err())
-        .map(|case| case.path.display().to_string())
-        .collect::<Vec<_>>();
-
-    if !failed.is_empty() {
-        panic!("{} full app cases failed: {:?}", failed.len(), failed);
     }
 }
 
