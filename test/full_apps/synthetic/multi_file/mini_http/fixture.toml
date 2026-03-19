@@ -1,0 +1,7 @@
+name = "mini_http"
+mode = "driver"
+flavor = "gnu"
+entry = "src/main.c"
+expected = "parse_ok"
+source = "synthetic"
+license = "repo"
