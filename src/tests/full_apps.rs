@@ -5,13 +5,14 @@ use crate::driver::{self, Config, Flavor};
 use crate::env::Env;
 use crate::parser;
 
-use super::support::{collect_fixture_dirs, manifest_value, read_file};
+use super::support::{collect_fixture_dirs, manifest_list_values, manifest_value, read_file};
 
 struct FullAppCase {
     path: PathBuf,
     flavor: AppFlavor,
     mode: AppMode,
     entry: PathBuf,
+    include_dirs: Vec<PathBuf>,
 }
 
 #[derive(Copy, Clone)]
@@ -35,6 +36,7 @@ impl FullAppCase {
         let mut flavor = AppFlavor::Core;
         let mut mode = AppMode::TranslationUnit;
         let mut entry = None;
+        let mut include_dirs = Vec::new();
 
         for line in manifest.lines() {
             let line = line.trim();
@@ -62,6 +64,10 @@ impl FullAppCase {
             if let Some(value) = manifest_value(line, "entry") {
                 entry = Some(PathBuf::from(value));
             }
+
+            if let Some(values) = manifest_list_values(line, "include_dirs") {
+                include_dirs = values.into_iter().map(PathBuf::from).collect();
+            }
         }
 
         Ok(FullAppCase {
@@ -69,6 +75,7 @@ impl FullAppCase {
             flavor: flavor,
             mode: mode,
             entry: entry.unwrap_or_else(|| PathBuf::from("main.c")),
+            include_dirs: include_dirs,
         })
     }
 
@@ -87,6 +94,11 @@ impl FullAppCase {
             AppMode::Driver => {
                 let mut config = config_for(self.flavor);
                 config.flavor = flavor_for(self.flavor);
+                for include_dir in &self.include_dirs {
+                    config
+                        .cpp_options
+                        .push(format!("-I{}", self.path.join(include_dir).display()));
+                }
                 driver::parse(&config, &source_path)
                     .map(|_| ())
                     .map_err(driver_error_to_parse_error)

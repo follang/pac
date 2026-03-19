@@ -36,6 +36,35 @@ pub fn manifest_value<'a>(line: &'a str, key: &str) -> Option<&'a str> {
     Some(&value[1..value.len() - 1])
 }
 
+pub fn manifest_list_values(line: &str, key: &str) -> Option<Vec<String>> {
+    let prefix = format!("{} = ", key);
+    let value = if line.starts_with(&prefix) {
+        line[prefix.len()..].trim()
+    } else {
+        return None;
+    };
+
+    if value.len() < 2 || !value.starts_with('[') || !value.ends_with(']') {
+        return None;
+    }
+
+    let inner = value[1..value.len() - 1].trim();
+    if inner.is_empty() {
+        return Some(Vec::new());
+    }
+
+    let mut values = Vec::new();
+    for item in inner.split(',') {
+        let item = item.trim();
+        if item.len() < 2 || !item.starts_with('"') || !item.ends_with('"') {
+            return None;
+        }
+        values.push(item[1..item.len() - 1].to_owned());
+    }
+
+    Some(values)
+}
+
 pub fn read_file(path: &Path) -> io::Result<String> {
     let mut file = File::open(path)?;
     let mut content = String::new();
