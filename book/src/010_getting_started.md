@@ -1,30 +1,102 @@
 # Getting Started
 
-Add PAC as a dependency:
+## Add the crate
 
 ```toml
 [dependencies]
 pac = { path = "../pac" }
 ```
 
-## Quick example
+## Pick the right API first
+
+Use `pac::driver` when you have a file on disk and want PAC to run a system preprocessor first.
 
 ```rust
-use pac::driver::{Config, parse};
+use pac::driver::{parse, Config};
 
-let config = Config::default();
-let result = parse(&config, "example.c").unwrap();
-println!("{:#?}", result.unit);
+fn main() -> Result<(), pac::driver::Error> {
+    let config = Config::default();
+    let parsed = parse(&config, "examples/sample.c")?;
+
+    println!("preprocessed bytes: {}", parsed.source.len());
+    println!("top-level items: {}", parsed.unit.0.len());
+    Ok(())
+}
 ```
 
-## Choosing a compiler flavor
+Use `pac::parse` when you already have source text in memory and want to parse a fragment directly.
+
+```rust
+use pac::driver::Flavor;
+use pac::parse;
+
+fn main() {
+    let expr = parse::expression("a + b * 2", Flavor::StdC11).unwrap();
+    println!("{:#?}", expr);
+}
+```
+
+## Choose a language flavor
+
+PAC supports three parser modes:
+
+| Flavor | Meaning |
+| --- | --- |
+| `StdC11` | Strict C11 |
+| `GnuC11` | C11 plus GNU syntax such as `typeof`, attributes, statement expressions, and GNU asm |
+| `ClangC11` | C11 plus Clang-oriented extensions such as availability attributes |
+
+For file-based parsing, `Config::default()` selects:
+
+- `clang -E` on macOS
+- `gcc -E` on other targets
+
+You can also select explicitly:
 
 ```rust
 use pac::driver::Config;
 
-// GNU extensions (default on Linux)
-let config = Config::with_gcc();
-
-// Clang extensions (default on macOS)
-let config = Config::with_clang();
+let gnu = Config::with_gcc();
+let clang = Config::with_clang();
 ```
+
+## First useful example
+
+This example parses a translation unit and counts top-level entries:
+
+```rust
+use pac::driver::{parse, Config};
+
+fn main() -> Result<(), pac::driver::Error> {
+    let parsed = parse(&Config::default(), "examples/header.h")?;
+
+    for (i, item) in parsed.unit.0.iter().enumerate() {
+        println!("item #{i}: {:?}", item.node);
+    }
+
+    Ok(())
+}
+```
+
+## First fragment example
+
+If you only need one declaration or statement, the direct parser API is faster to wire in:
+
+```rust
+use pac::driver::Flavor;
+use pac::parse;
+
+fn main() {
+    let decl = parse::declaration("static const int answer = 42;", Flavor::StdC11).unwrap();
+    let stmt = parse::statement("return answer;", Flavor::StdC11).unwrap();
+
+    println!("{:#?}", decl);
+    println!("{:#?}", stmt);
+}
+```
+
+## What to read next
+
+- [Common Workflows](./015_workflows.md) for choosing between `driver`, `parse_preprocessed`, and `parse`
+- [Driver API](./020_driver.md) for preprocessing and file-based parsing
+- [Parser API](./030_parser.md) for fragment parsing
