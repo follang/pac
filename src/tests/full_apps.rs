@@ -320,3 +320,12 @@ fn full_app_manifest_supports_system_include_opt_in() {
     assert!(case.allow_system_includes);
     assert!(case.tags.iter().any(|tag| tag == "example"));
 }
+
+#[test]
+fn full_app_external_headers_can_be_tagged_slow() {
+    let case = FullAppCase::from_dir(PathBuf::from("test/full_apps/external/musl/stdint"))
+        .expect("loading external musl stdint fixture");
+
+    assert!(case.tags.iter().any(|tag| tag == "slow"));
+    assert!(case.matches_filters(None, Some("slow")));
+}
