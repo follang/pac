@@ -5,3 +5,4 @@ entry = "main.c"
 expected = "parse_ok"
 source = "synthetic"
 license = "repo"
+tags = ["synthetic", "single_file", "state_machine"]

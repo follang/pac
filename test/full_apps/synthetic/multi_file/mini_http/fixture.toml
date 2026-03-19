@@ -5,3 +5,4 @@ entry = "src/main.c"
 expected = "parse_ok"
 source = "synthetic"
 license = "repo"
+tags = ["synthetic", "multi_file", "http"]

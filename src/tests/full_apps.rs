@@ -1,3 +1,4 @@
+use std::env;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -13,16 +14,17 @@ struct FullAppCase {
     mode: AppMode,
     entry: PathBuf,
     include_dirs: Vec<PathBuf>,
+    tags: Vec<String>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 enum AppFlavor {
     Core,
     Gnu,
     Clang,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 enum AppMode {
     TranslationUnit,
     Driver,
@@ -37,6 +39,7 @@ impl FullAppCase {
         let mut mode = AppMode::TranslationUnit;
         let mut entry = None;
         let mut include_dirs = Vec::new();
+        let mut tags = Vec::new();
 
         for line in manifest.lines() {
             let line = line.trim();
@@ -68,6 +71,10 @@ impl FullAppCase {
             if let Some(values) = manifest_list_values(line, "include_dirs") {
                 include_dirs = values.into_iter().map(PathBuf::from).collect();
             }
+
+            if let Some(values) = manifest_list_values(line, "tags") {
+                tags = values;
+            }
         }
 
         Ok(FullAppCase {
@@ -76,6 +83,7 @@ impl FullAppCase {
             mode: mode,
             entry: entry.unwrap_or_else(|| PathBuf::from("main.c")),
             include_dirs: include_dirs,
+            tags: tags,
         })
     }
 
@@ -104,6 +112,32 @@ impl FullAppCase {
                     .map_err(driver_error_to_parse_error)
             }
         }
+    }
+
+    fn matches_filters(&self, path_filter: Option<&str>, tag_filter: Option<&str>) -> bool {
+        if let Some(path_filter) = path_filter {
+            let path = self.path.display().to_string();
+            if !path.contains(path_filter) {
+                return false;
+            }
+        }
+
+        if let Some(tag_filter) = tag_filter {
+            if !self.tags.iter().any(|tag| tag == tag_filter) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn describe(&self) -> String {
+        format!(
+            "{} [mode={:?}, flavor={:?}]",
+            self.path.display(),
+            self.mode,
+            self.flavor
+        )
     }
 }
 
@@ -141,15 +175,39 @@ fn full_app_main() {
     let mut case_paths = Vec::new();
     collect_fixture_dirs(Path::new("test/full_apps"), &mut case_paths);
     assert!(!case_paths.is_empty(), "expected at least one full app fixture");
+    let path_filter = env::var("FULL_APP_FILTER").ok();
+    let tag_filter = env::var("FULL_APP_TAG").ok();
 
     let failed = case_paths
         .iter()
         .map(|path| FullAppCase::from_dir(path.to_path_buf()).expect("loading full app fixture"))
-        .filter(|case| case.run().is_err())
-        .map(|case| case.path.display().to_string())
+        .filter(|case| case.matches_filters(path_filter.as_deref(), tag_filter.as_deref()))
+        .filter_map(|case| match case.run() {
+            Ok(()) => None,
+            Err(err) => Some(format!("{}: {}", case.describe(), err)),
+        })
         .collect::<Vec<_>>();
 
     if !failed.is_empty() {
-        panic!("{} full app cases failed: {:?}", failed.len(), failed);
+        panic!("{} full app cases failed:\n{}", failed.len(), failed.join("\n"));
     }
+}
+
+#[test]
+fn full_app_filter_matches_path_and_tag() {
+    let case = FullAppCase {
+        path: PathBuf::from("test/full_apps/synthetic/single_file/state_machine"),
+        flavor: AppFlavor::Gnu,
+        mode: AppMode::TranslationUnit,
+        entry: PathBuf::from("main.c"),
+        include_dirs: Vec::new(),
+        tags: vec!["synthetic".to_owned(), "single_file".to_owned()],
+    };
+
+    assert!(case.matches_filters(None, None));
+    assert!(case.matches_filters(Some("state_machine"), None));
+    assert!(case.matches_filters(None, Some("synthetic")));
+    assert!(case.matches_filters(Some("single_file"), Some("synthetic")));
+    assert!(!case.matches_filters(Some("mini_http"), None));
+    assert!(!case.matches_filters(None, Some("external")));
 }
