@@ -1,3 +1,4 @@
 mod full_apps;
+mod parse_api;
 mod reftests;
 mod support;

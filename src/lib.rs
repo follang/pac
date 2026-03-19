@@ -15,6 +15,7 @@
 pub mod ast;
 pub mod driver;
 pub mod loc;
+pub mod parse;
 pub mod print;
 pub mod span;
 pub mod visit;
