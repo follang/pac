@@ -10,6 +10,7 @@ Usage:
 Known fixtures:
   libpng-header
   musl-stdint
+  zlib-adler32
   zlib-header
   zlib-zpipe
 EOF
@@ -36,6 +37,18 @@ license=MIT
 upstream=https://git.musl-libc.org/cgit/musl/
 files=include/stdint.h;arch/x86_64/bits/stdint.h;arch/x86_64/bits/alltypes.h.in;include/alltypes.h.in;COPYRIGHT
 target=test/full_apps/external/musl/stdint
+EOF
+}
+
+show_zlib_adler32() {
+    cat <<'EOF'
+fixture=zlib-adler32
+project=zlib
+version=v1.3.1
+license=Zlib
+upstream=https://github.com/madler/zlib
+files=adler32.c;zutil.h;zlib.h;zconf.h
+target=test/full_apps/external/zlib/adler32_impl
 EOF
 }
 
@@ -72,6 +85,7 @@ case "$1" in
     list)
         echo libpng-header
         echo musl-stdint
+        echo zlib-adler32
         echo zlib-header
         echo zlib-zpipe
         ;;
@@ -86,6 +100,9 @@ case "$1" in
                 ;;
             musl-stdint)
                 show_musl_stdint
+                ;;
+            zlib-adler32)
+                show_zlib_adler32
                 ;;
             zlib-header)
                 show_zlib_header

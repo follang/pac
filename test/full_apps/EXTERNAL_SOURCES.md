@@ -63,6 +63,23 @@ This file records the upstream provenance for vendored external fixtures under
   - The local fixture reuses the vendored zlib public headers and opts into host
     libc headers explicitly via the manifest.
 
+### zlib adler32 implementation
+
+- Project: zlib
+- Upstream: https://github.com/madler/zlib
+- Version: `v1.3.1`
+- License: Zlib
+- Local license file: `test/full_apps/licenses/zlib-License.txt`
+- Source files:
+  - `adler32.c`
+  - `zutil.h`
+  - `zlib.h`
+  - `zconf.h`
+- Local transformation:
+  - Vendored the official `adler32.c` implementation and provided a reduced
+    local `zutil.h` shim containing the declarations and macros needed to parse
+    this translation unit against the vendored public headers.
+
 ### libpng public header set
 
 - Project: libpng

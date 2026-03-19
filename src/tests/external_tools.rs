@@ -28,6 +28,7 @@ fn refresh_script_lists_known_fixtures() {
     let output = run_script(&["list"]);
     assert!(output.lines().any(|line| line == "libpng-header"));
     assert!(output.lines().any(|line| line == "musl-stdint"));
+    assert!(output.lines().any(|line| line == "zlib-adler32"));
     assert!(output.lines().any(|line| line == "zlib-header"));
     assert!(output.lines().any(|line| line == "zlib-zpipe"));
 }
@@ -57,6 +58,15 @@ fn refresh_script_shows_libpng_fixture_metadata() {
     assert!(output.contains("project=libpng"));
     assert!(output.contains("version=v1.6.43"));
     assert!(output.contains("target=test/full_apps/external/libpng/header"));
+}
+
+#[test]
+fn refresh_script_shows_zlib_implementation_metadata() {
+    let output = run_script(&["show", "zlib-adler32"]);
+    assert!(output.contains("fixture=zlib-adler32"));
+    assert!(output.contains("project=zlib"));
+    assert!(output.contains("version=v1.3.1"));
+    assert!(output.contains("target=test/full_apps/external/zlib/adler32_impl"));
 }
 
 #[test]

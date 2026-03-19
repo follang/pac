@@ -339,3 +339,12 @@ fn full_app_external_headers_can_be_tagged_slow() {
     assert!(case.tags.iter().any(|tag| tag == "slow"));
     assert!(case.matches_filters(None, Some("slow")));
 }
+
+#[test]
+fn full_app_implementation_fixtures_can_be_filtered_by_tag() {
+    let case = FullAppCase::from_dir(PathBuf::from("test/full_apps/external/zlib/adler32_impl"))
+        .expect("loading external zlib implementation fixture");
+
+    assert!(case.tags.iter().any(|tag| tag == "implementation"));
+    assert!(case.matches_filters(None, Some("implementation")));
+}
