@@ -1,0 +1,9 @@
+name = "logger_platform"
+mode = "driver"
+flavor = "gnu"
+entry = "src/main.c"
+include_dirs = ["include"]
+expected = "parse_ok"
+source = "synthetic"
+license = "repo"
+tags = ["synthetic", "multi_file", "logger"]

@@ -1,0 +1,8 @@
+name = "tokenizer"
+mode = "translation_unit"
+flavor = "gnu"
+entry = "main.c"
+expected = "parse_ok"
+source = "synthetic"
+license = "repo"
+tags = ["synthetic", "single_file", "tokenizer"]
