@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Location Tracking - PAC Reference</title>
+        <title>Release Checklist - PAC Reference</title>
 
 
         <!-- Custom HTML head -->
@@ -174,108 +174,49 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="location-tracking"><a class="header" href="#location-tracking">Location Tracking</a></h1>
-<p>PAC tracks source positions in two related ways:</p>
-<ul>
-<li><code>Span</code> stores byte offsets into the parsed input</li>
-<li><code>loc</code> maps byte offsets in preprocessed source back to original files and lines</li>
-</ul>
-<h2 id="span"><a class="header" href="#span"><code>Span</code></a></h2>
-<p><code>Span</code> is a byte range:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct Span {
-    pub start: usize,
-    pub end: usize,
-}
-<span class="boring">}</span></code></pre>
-<p>Most AST values are wrapped in <code>Node&lt;T&gt;</code>, which adds a <code>span</code> field:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct Node&lt;T&gt; {
-    pub node: T,
-    pub span: Span,
-}
-<span class="boring">}</span></code></pre>
-<h2 id="what-spans-point-to"><a class="header" href="#what-spans-point-to">What spans point to</a></h2>
-<p>This depends on the API you used:</p>
-<ul>
-<li>with <code>parse::*</code>, spans refer to the string you passed in</li>
-<li>with <code>driver::parse_preprocessed</code>, spans refer to the preprocessed string you passed in</li>
-<li>with <code>driver::parse</code>, spans refer to the preprocessor output stored in <code>Parse::source</code></li>
-</ul>
-<p>That last case is important: spans do not directly point into the original <code>.c</code> file when
-preprocessing has inserted line markers or expanded includes.</p>
-<h2 id="mapping-offsets-back-to-files"><a class="header" href="#mapping-offsets-back-to-files">Mapping offsets back to files</a></h2>
-<p>The <code>loc</code> module reads preprocessor line markers like:</p>
-<pre><code class="language-text"># 42 "include/header.h" 1
-</code></pre>
-<p>From those markers, <code>get_location_for_offset</code> reconstructs:</p>
-<ul>
-<li>the active file</li>
-<li>the active line number</li>
-<li>the include stack</li>
-</ul>
-<h2 id="basic-example"><a class="header" href="#basic-example">Basic example</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use pac::loc::get_location_for_offset;
-
-let src = "# 1 \"main.c\"\nint value;\n";
-let (loc, includes) = get_location_for_offset(src, 18);
-
-assert_eq!(loc.file, "main.c");
-assert!(includes.is_empty());
-<span class="boring">}</span></code></pre>
-<h2 id="using-spans-with-locations"><a class="header" href="#using-spans-with-locations">Using spans with locations</a></h2>
-<p>The common pattern is:</p>
+                        <h1 id="release-checklist"><a class="header" href="#release-checklist">Release Checklist</a></h1>
+<p>This chapter is a pragmatic checklist for documentation and parser changes before a release.</p>
+<h2 id="parser-changes"><a class="header" href="#parser-changes">Parser changes</a></h2>
+<p>Before releasing parser changes:</p>
 <ol>
-<li>take a node span</li>
-<li>use <code>span.start</code> or <code>span.end</code></li>
-<li>map that offset through <code>loc</code></li>
+<li>confirm the smallest reproducer has a test</li>
+<li>confirm the intended flavor coverage is tested</li>
+<li>confirm the AST shape change is deliberate</li>
+<li>confirm visitor and printer behavior still make sense</li>
 </ol>
-<p>Example:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use pac::driver::{parse, Config};
-use pac::loc::get_location_for_offset;
-
-let parsed = parse(&amp;Config::default(), "examples/sample.c")?;
-
-if let Some(first) = parsed.unit.0.first() {
-    let (loc, include_stack) = get_location_for_offset(&amp;parsed.source, first.span.start);
-    println!("first item starts in {}:{}", loc.file, loc.line);
-    println!("include depth: {}", include_stack.len());
-}
-<span class="boring">Ok::&lt;(), pac::driver::Error&gt;(())
-</span><span class="boring">}</span></code></pre>
-<h2 id="syntaxerrorget_location"><a class="header" href="#syntaxerrorget_location"><code>SyntaxError::get_location</code></a></h2>
-<p>For parser failures in the driver path, <code>driver::SyntaxError</code> already exposes:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>err.get_location()
-<span class="boring">}</span></code></pre>
-<p>That returns:</p>
-<ul>
-<li>the active source location</li>
-<li>the include chain that led there</li>
-</ul>
-<p>This is the best starting point for user-facing diagnostics.</p>
-<h2 id="caveat-byte-offsets-not-columns-in-utf-16"><a class="header" href="#caveat-byte-offsets-not-columns-in-utf-16">Caveat: byte offsets, not columns in UTF-16</a></h2>
-<p>PAC stores Rust byte offsets. That is usually what you want for source processing, but if you are
-feeding results into another tool that expects a different coordinate system, convert explicitly.</p>
+<h2 id="book-changes"><a class="header" href="#book-changes">Book changes</a></h2>
+<p>Before releasing documentation changes:</p>
+<ol>
+<li>confirm the affected public behavior is described in the book</li>
+<li>confirm unsupported or out-of-scope cases are still documented honestly</li>
+<li>confirm examples still match the actual public API names</li>
+</ol>
+<h2 id="error-surface-changes"><a class="header" href="#error-surface-changes">Error-surface changes</a></h2>
+<p>Before releasing changes around errors:</p>
+<ol>
+<li>confirm structured fields still provide the needed information</li>
+<li>avoid treating formatted strings as the real contract</li>
+<li>update the error-surface chapter if the practical behavior changed</li>
+</ol>
+<h2 id="workflow-changes"><a class="header" href="#workflow-changes">Workflow changes</a></h2>
+<p>Before releasing changes to the normal integration path:</p>
+<ol>
+<li>update the workflow chapter</li>
+<li>update the API contract chapter if the preferred boundary changed</li>
+<li>update stable-usage guidance if downstream posture should change</li>
+</ol>
+<h2 id="final-practical-rule"><a class="header" href="#final-practical-rule">Final practical rule</a></h2>
+<p>If a change would force a downstream PAC consumer to rethink how it parses, traverses, or reports
+on source, the book should say so explicitly in the same change.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="050_visitor.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="190_parser_boundaries.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="070_testing.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -283,13 +224,10 @@ feeding results into another tool that expects a different coordinate system, co
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="050_visitor.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="190_parser_boundaries.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="070_testing.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                    </a>
             </nav>
 
         </div>

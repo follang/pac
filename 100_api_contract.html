@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Location Tracking - PAC Reference</title>
+        <title>API Contract - PAC Reference</title>
 
 
         <!-- Custom HTML head -->
@@ -174,106 +174,107 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="location-tracking"><a class="header" href="#location-tracking">Location Tracking</a></h1>
-<p>PAC tracks source positions in two related ways:</p>
-<ul>
-<li><code>Span</code> stores byte offsets into the parsed input</li>
-<li><code>loc</code> maps byte offsets in preprocessed source back to original files and lines</li>
-</ul>
-<h2 id="span"><a class="header" href="#span"><code>Span</code></a></h2>
-<p><code>Span</code> is a byte range:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct Span {
-    pub start: usize,
-    pub end: usize,
-}
-<span class="boring">}</span></code></pre>
-<p>Most AST values are wrapped in <code>Node&lt;T&gt;</code>, which adds a <code>span</code> field:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>pub struct Node&lt;T&gt; {
-    pub node: T,
-    pub span: Span,
-}
-<span class="boring">}</span></code></pre>
-<h2 id="what-spans-point-to"><a class="header" href="#what-spans-point-to">What spans point to</a></h2>
-<p>This depends on the API you used:</p>
-<ul>
-<li>with <code>parse::*</code>, spans refer to the string you passed in</li>
-<li>with <code>driver::parse_preprocessed</code>, spans refer to the preprocessed string you passed in</li>
-<li>with <code>driver::parse</code>, spans refer to the preprocessor output stored in <code>Parse::source</code></li>
-</ul>
-<p>That last case is important: spans do not directly point into the original <code>.c</code> file when
-preprocessing has inserted line markers or expanded includes.</p>
-<h2 id="mapping-offsets-back-to-files"><a class="header" href="#mapping-offsets-back-to-files">Mapping offsets back to files</a></h2>
-<p>The <code>loc</code> module reads preprocessor line markers like:</p>
-<pre><code class="language-text"># 42 "include/header.h" 1
-</code></pre>
-<p>From those markers, <code>get_location_for_offset</code> reconstructs:</p>
-<ul>
-<li>the active file</li>
-<li>the active line number</li>
-<li>the include stack</li>
-</ul>
-<h2 id="basic-example"><a class="header" href="#basic-example">Basic example</a></h2>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use pac::loc::get_location_for_offset;
-
-let src = "# 1 \"main.c\"\nint value;\n";
-let (loc, includes) = get_location_for_offset(src, 18);
-
-assert_eq!(loc.file, "main.c");
-assert!(includes.is_empty());
-<span class="boring">}</span></code></pre>
-<h2 id="using-spans-with-locations"><a class="header" href="#using-spans-with-locations">Using spans with locations</a></h2>
-<p>The common pattern is:</p>
+                        <h1 id="api-contract"><a class="header" href="#api-contract">API Contract</a></h1>
+<p>This chapter records the intended public consumer surface of <code>pac</code>.</p>
+<p>It is not a blanket promise about every future change. It is the current explicit guidance for how
+downstream tools should integrate with the crate without depending on internal parser details.</p>
+<h2 id="first-principle"><a class="header" href="#first-principle">First Principle</a></h2>
+<p><code>pac</code> is a parsing library.</p>
+<p>The intended downstream pattern is:</p>
 <ol>
-<li>take a node span</li>
-<li>use <code>span.start</code> or <code>span.end</code></li>
-<li>map that offset through <code>loc</code></li>
+<li>parse source with <code>driver</code> or <code>parse</code></li>
+<li>consume typed AST values from <code>ast</code></li>
+<li>use <code>visit</code>, <code>span</code>, and <code>loc</code> to analyze and report on those values</li>
 </ol>
-<p>Example:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>use pac::driver::{parse, Config};
-use pac::loc::get_location_for_offset;
-
-let parsed = parse(&amp;Config::default(), "examples/sample.c")?;
-
-if let Some(first) = parsed.unit.0.first() {
-    let (loc, include_stack) = get_location_for_offset(&amp;parsed.source, first.span.start);
-    println!("first item starts in {}:{}", loc.file, loc.line);
-    println!("include depth: {}", include_stack.len());
-}
-<span class="boring">Ok::&lt;(), pac::driver::Error&gt;(())
-</span><span class="boring">}</span></code></pre>
-<h2 id="syntaxerrorget_location"><a class="header" href="#syntaxerrorget_location"><code>SyntaxError::get_location</code></a></h2>
-<p>For parser failures in the driver path, <code>driver::SyntaxError</code> already exposes:</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>err.get_location()
-<span class="boring">}</span></code></pre>
-<p>That returns:</p>
+<p>Consumers should treat parser internals as implementation, not as the main integration surface.</p>
+<h2 id="preferred-public-surface"><a class="header" href="#preferred-public-surface">Preferred public surface</a></h2>
+<p>These are the main consumer-facing modules:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Module</th><th>Role</th><th>Current expectation</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pac::driver</code></td><td>parse files and preprocessed source</td><td>preferred high-level entry point</td></tr>
+<tr><td><code>pac::parse</code></td><td>parse string fragments directly</td><td>preferred low-level entry point</td></tr>
+<tr><td><code>pac::ast</code></td><td>typed syntax tree</td><td>preferred data contract</td></tr>
+<tr><td><code>pac::visit</code></td><td>recursive traversal hooks</td><td>preferred traversal API</td></tr>
+<tr><td><code>pac::span</code></td><td>byte-range metadata</td><td>preferred location primitive</td></tr>
+<tr><td><code>pac::loc</code></td><td>map offsets back to files/lines</td><td>preferred diagnostics helper</td></tr>
+<tr><td><code>pac::print</code></td><td>AST debug dumping</td><td>preferred inspection helper</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="internal-modules-are-not-the-contract"><a class="header" href="#internal-modules-are-not-the-contract">Internal modules are not the contract</a></h2>
+<p>These modules are public only indirectly through behavior, not as a recommended downstream surface:</p>
 <ul>
-<li>the active source location</li>
-<li>the include chain that led there</li>
+<li><code>parser</code></li>
+<li><code>env</code></li>
+<li><code>astutil</code></li>
+<li><code>strings</code></li>
 </ul>
-<p>This is the best starting point for user-facing diagnostics.</p>
-<h2 id="caveat-byte-offsets-not-columns-in-utf-16"><a class="header" href="#caveat-byte-offsets-not-columns-in-utf-16">Caveat: byte offsets, not columns in UTF-16</a></h2>
-<p>PAC stores Rust byte offsets. That is usually what you want for source processing, but if you are
-feeding results into another tool that expects a different coordinate system, convert explicitly.</p>
+<p>If a downstream tool depends directly on how those modules work, it is probably coupling itself to
+implementation details rather than the intended library boundary.</p>
+<h2 id="normative-consumer-rules"><a class="header" href="#normative-consumer-rules">Normative consumer rules</a></h2>
+<p>If you are building on top of <code>pac</code>, the safest current rules are:</p>
+<ol>
+<li>use <code>driver</code> when preprocessing matters</li>
+<li>use <code>parse::*</code> for fragment parsing or already-controlled text inputs</li>
+<li>treat <code>ast</code> types as the primary output contract</li>
+<li>use <code>visit</code> for traversal instead of hand-rolling recursive descent everywhere</li>
+<li>use <code>span</code> and <code>loc</code> for diagnostics rather than guessing source positions</li>
+<li>do not rely on exact error-message strings for durable control flow</li>
+<li>do not treat PAC as semantic analysis, type checking, or ABI proof</li>
+</ol>
+<h2 id="what-is-part-of-the-practical-contract"><a class="header" href="#what-is-part-of-the-practical-contract">What is part of the practical contract</a></h2>
+<p>Today the strongest practical contract is:</p>
+<ul>
+<li><code>driver::Config</code>, <code>Flavor</code>, <code>Parse</code>, <code>Error</code>, and <code>SyntaxError</code></li>
+<li><code>parse::{constant, expression, declaration, statement, translation_unit}</code></li>
+<li>the AST model under <code>ast</code></li>
+<li>the traversal hooks under <code>visit</code></li>
+<li>the span/location model under <code>span</code> and <code>loc</code></li>
+</ul>
+<p>Those are the surfaces the rest of the book assumes consumers will use.</p>
+<h2 id="what-is-intentionally-weaker"><a class="header" href="#what-is-intentionally-weaker">What is intentionally weaker</a></h2>
+<p>The following should be treated as less stable than the core parsing surface:</p>
+<ul>
+<li>exact debug formatting of AST values</li>
+<li>exact <code>Display</code> wording of parse errors</li>
+<li>internal parser file layout under <code>src/parser/</code></li>
+<li>incidental ordering of implementation helper functions</li>
+</ul>
+<p>These details are useful for debugging and contribution work, but they are not the main consumer
+contract.</p>
+<h2 id="explicit-non-goals"><a class="header" href="#explicit-non-goals">Explicit non-goals</a></h2>
+<p>The current contract does not promise:</p>
+<ul>
+<li>preprocessing without a system C compiler in the <code>driver</code> path</li>
+<li>semantic name resolution beyond parsing decisions such as typedef handling</li>
+<li>type checking</li>
+<li>ABI compatibility guarantees</li>
+<li>full support for every GCC or Clang extension</li>
+<li>preservation of raw macro definitions as a first-class PAC output</li>
+</ul>
+<p>Those are outside the scope of PAC as a parser library.</p>
+<h2 id="downstream-posture"><a class="header" href="#downstream-posture">Downstream posture</a></h2>
+<p>For long-lived integrations, the safest posture is:</p>
+<ol>
+<li>keep your entry points at <code>driver</code> and <code>parse</code></li>
+<li>convert ASTs into your own analysis model if you need stricter invariants</li>
+<li>treat unsupported syntax and parser errors as normal outcomes</li>
+<li>keep tests with representative preprocessed inputs for the syntax families you depend on</li>
+</ol>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="050_visitor.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="090_project_layout.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="070_testing.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="110_end_to_end_workflows.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -283,11 +284,11 @@ feeding results into another tool that expects a different coordinate system, co
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="050_visitor.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="090_project_layout.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="070_testing.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="110_end_to_end_workflows.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

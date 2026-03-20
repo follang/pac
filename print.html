@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-33ec1cec.js";
+            window.path_to_searchindex_js = "searchindex-89753dc1.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-f5f3aa98.js"></script>
+        <script src="toc-e600abd2.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -241,6 +241,25 @@ It does not do semantic analysis, type checking, macro expansion itself, or code
 <li>Read <a href="#driver-api">Driver API</a> or <a href="#parser-api">Parser API</a> depending on your input</li>
 <li>Read <a href="#ast-model">AST Model</a> before writing analysis code</li>
 <li>Read <a href="#visitor-pattern">Visitor Pattern</a> if you want to walk the tree</li>
+</ul>
+<h2 id="recommended-reading-order"><a class="header" href="#recommended-reading-order">Recommended reading order</a></h2>
+<p>The book is now organized in a few larger blocks:</p>
+<ol>
+<li>Core parsing usage</li>
+<li>Diagnostics, locations, and testing</li>
+<li>Consumer contract and workflow guidance</li>
+<li>Support boundaries and unsupported cases</li>
+<li>Contributor-oriented project layout and workflow</li>
+</ol>
+<p>If you are integrating PAC into another tool, focus first on:</p>
+<ul>
+<li><a href="#common-workflows">Common Workflows</a></li>
+<li><a href="#driver-api">Driver API</a></li>
+<li><a href="#parser-api">Parser API</a></li>
+<li><a href="#ast-model">AST Model</a></li>
+<li><a href="#visitor-pattern">Visitor Pattern</a></li>
+<li><a href="#api-contract">API Contract</a></li>
+<li><a href="#end-to-end-workflows">End-To-End Workflows</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
@@ -1305,6 +1324,783 @@ flavor. The public <code>parse</code> and <code>driver</code> APIs construct the
 <li>patch the grammar or AST logic</li>
 <li>run <code>make test</code></li>
 </ol>
+<h2 id="why-the-parser-is-split-this-way"><a class="header" href="#why-the-parser-is-split-this-way">Why the parser is split this way</a></h2>
+<p>The parser is organized by syntax areas because C grammar work tends to be local but not trivial.
+That split helps with three things:</p>
+<ul>
+<li>keeping grammar changes reviewable</li>
+<li>matching failures to the right part of the parser quickly</li>
+<li>reducing the chance that one large parser file becomes impossible to maintain</li>
+</ul>
+<p>For example:</p>
+<ul>
+<li>declaration bugs often land in <code>declarations_entry.rs</code>, <code>declarators.rs</code>, or related files</li>
+<li>expression bugs often land in <code>primary_and_generic.rs</code>, <code>casts_and_binary.rs</code>, or nearby files</li>
+<li>statement bugs often land in the <code>statements_*</code> files</li>
+</ul>
+<h2 id="public-versus-internal-boundaries"><a class="header" href="#public-versus-internal-boundaries">Public versus internal boundaries</a></h2>
+<p>These are normal consumer-facing modules:</p>
+<ul>
+<li><code>driver</code></li>
+<li><code>parse</code></li>
+<li><code>ast</code></li>
+<li><code>visit</code></li>
+<li><code>loc</code></li>
+<li><code>span</code></li>
+<li><code>print</code></li>
+</ul>
+<p>These are implementation-oriented and should not be treated as a stable downstream boundary:</p>
+<ul>
+<li><code>parser</code></li>
+<li><code>env</code></li>
+<li><code>astutil</code></li>
+<li><code>strings</code></li>
+</ul>
+<p>That distinction matters when you are extending the book or the crate API. Documentation should
+prefer the consumer-facing modules unless the chapter is specifically contributor-oriented.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="api-contract"><a class="header" href="#api-contract">API Contract</a></h1>
+<p>This chapter records the intended public consumer surface of <code>pac</code>.</p>
+<p>It is not a blanket promise about every future change. It is the current explicit guidance for how
+downstream tools should integrate with the crate without depending on internal parser details.</p>
+<h2 id="first-principle"><a class="header" href="#first-principle">First Principle</a></h2>
+<p><code>pac</code> is a parsing library.</p>
+<p>The intended downstream pattern is:</p>
+<ol>
+<li>parse source with <code>driver</code> or <code>parse</code></li>
+<li>consume typed AST values from <code>ast</code></li>
+<li>use <code>visit</code>, <code>span</code>, and <code>loc</code> to analyze and report on those values</li>
+</ol>
+<p>Consumers should treat parser internals as implementation, not as the main integration surface.</p>
+<h2 id="preferred-public-surface"><a class="header" href="#preferred-public-surface">Preferred public surface</a></h2>
+<p>These are the main consumer-facing modules:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Module</th><th>Role</th><th>Current expectation</th></tr>
+</thead>
+<tbody>
+<tr><td><code>pac::driver</code></td><td>parse files and preprocessed source</td><td>preferred high-level entry point</td></tr>
+<tr><td><code>pac::parse</code></td><td>parse string fragments directly</td><td>preferred low-level entry point</td></tr>
+<tr><td><code>pac::ast</code></td><td>typed syntax tree</td><td>preferred data contract</td></tr>
+<tr><td><code>pac::visit</code></td><td>recursive traversal hooks</td><td>preferred traversal API</td></tr>
+<tr><td><code>pac::span</code></td><td>byte-range metadata</td><td>preferred location primitive</td></tr>
+<tr><td><code>pac::loc</code></td><td>map offsets back to files/lines</td><td>preferred diagnostics helper</td></tr>
+<tr><td><code>pac::print</code></td><td>AST debug dumping</td><td>preferred inspection helper</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="internal-modules-are-not-the-contract"><a class="header" href="#internal-modules-are-not-the-contract">Internal modules are not the contract</a></h2>
+<p>These modules are public only indirectly through behavior, not as a recommended downstream surface:</p>
+<ul>
+<li><code>parser</code></li>
+<li><code>env</code></li>
+<li><code>astutil</code></li>
+<li><code>strings</code></li>
+</ul>
+<p>If a downstream tool depends directly on how those modules work, it is probably coupling itself to
+implementation details rather than the intended library boundary.</p>
+<h2 id="normative-consumer-rules"><a class="header" href="#normative-consumer-rules">Normative consumer rules</a></h2>
+<p>If you are building on top of <code>pac</code>, the safest current rules are:</p>
+<ol>
+<li>use <code>driver</code> when preprocessing matters</li>
+<li>use <code>parse::*</code> for fragment parsing or already-controlled text inputs</li>
+<li>treat <code>ast</code> types as the primary output contract</li>
+<li>use <code>visit</code> for traversal instead of hand-rolling recursive descent everywhere</li>
+<li>use <code>span</code> and <code>loc</code> for diagnostics rather than guessing source positions</li>
+<li>do not rely on exact error-message strings for durable control flow</li>
+<li>do not treat PAC as semantic analysis, type checking, or ABI proof</li>
+</ol>
+<h2 id="what-is-part-of-the-practical-contract"><a class="header" href="#what-is-part-of-the-practical-contract">What is part of the practical contract</a></h2>
+<p>Today the strongest practical contract is:</p>
+<ul>
+<li><code>driver::Config</code>, <code>Flavor</code>, <code>Parse</code>, <code>Error</code>, and <code>SyntaxError</code></li>
+<li><code>parse::{constant, expression, declaration, statement, translation_unit}</code></li>
+<li>the AST model under <code>ast</code></li>
+<li>the traversal hooks under <code>visit</code></li>
+<li>the span/location model under <code>span</code> and <code>loc</code></li>
+</ul>
+<p>Those are the surfaces the rest of the book assumes consumers will use.</p>
+<h2 id="what-is-intentionally-weaker"><a class="header" href="#what-is-intentionally-weaker">What is intentionally weaker</a></h2>
+<p>The following should be treated as less stable than the core parsing surface:</p>
+<ul>
+<li>exact debug formatting of AST values</li>
+<li>exact <code>Display</code> wording of parse errors</li>
+<li>internal parser file layout under <code>src/parser/</code></li>
+<li>incidental ordering of implementation helper functions</li>
+</ul>
+<p>These details are useful for debugging and contribution work, but they are not the main consumer
+contract.</p>
+<h2 id="explicit-non-goals"><a class="header" href="#explicit-non-goals">Explicit non-goals</a></h2>
+<p>The current contract does not promise:</p>
+<ul>
+<li>preprocessing without a system C compiler in the <code>driver</code> path</li>
+<li>semantic name resolution beyond parsing decisions such as typedef handling</li>
+<li>type checking</li>
+<li>ABI compatibility guarantees</li>
+<li>full support for every GCC or Clang extension</li>
+<li>preservation of raw macro definitions as a first-class PAC output</li>
+</ul>
+<p>Those are outside the scope of PAC as a parser library.</p>
+<h2 id="downstream-posture"><a class="header" href="#downstream-posture">Downstream posture</a></h2>
+<p>For long-lived integrations, the safest posture is:</p>
+<ol>
+<li>keep your entry points at <code>driver</code> and <code>parse</code></li>
+<li>convert ASTs into your own analysis model if you need stricter invariants</li>
+<li>treat unsupported syntax and parser errors as normal outcomes</li>
+<li>keep tests with representative preprocessed inputs for the syntax families you depend on</li>
+</ol>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="end-to-end-workflows"><a class="header" href="#end-to-end-workflows">End-To-End Workflows</a></h1>
+<p>This chapter ties the public modules together into practical usage patterns.</p>
+<h2 id="workflow-1-parse-a-real-c-file"><a class="header" href="#workflow-1-parse-a-real-c-file">Workflow 1: Parse A Real C File</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pac::driver::{parse, Config};
+
+let parsed = parse(&amp;Config::default(), "include/demo.h")?;
+println!("items: {}", parsed.unit.0.len());
+<span class="boring">Ok::&lt;(), pac::driver::Error&gt;(())
+</span><span class="boring">}</span></code></pre>
+<p>This is the baseline path when:</p>
+<ul>
+<li>includes matter</li>
+<li>macros matter</li>
+<li>compiler predefined types or macros matter</li>
+</ul>
+<p>The result gives you both the AST and the exact preprocessed source PAC saw.</p>
+<h2 id="workflow-2-parse-a-preprocessed-snapshot"><a class="header" href="#workflow-2-parse-a-preprocessed-snapshot">Workflow 2: Parse A Preprocessed Snapshot</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pac::driver::{parse_preprocessed, Config};
+
+let source = std::fs::read_to_string("snapshots/demo.i").unwrap();
+let parsed = parse_preprocessed(&amp;Config::default(), source)?;
+<span class="boring">Ok::&lt;(), pac::driver::SyntaxError&gt;(())
+</span><span class="boring">}</span></code></pre>
+<p>Use this when:</p>
+<ul>
+<li>reproducing a parse bug</li>
+<li>building deterministic tests</li>
+<li>integrating with a nonstandard build system</li>
+</ul>
+<p>This workflow isolates parser behavior from preprocessor invocation behavior.</p>
+<h2 id="workflow-3-parse-a-fragment-in-tests"><a class="header" href="#workflow-3-parse-a-fragment-in-tests">Workflow 3: Parse A Fragment In Tests</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pac::driver::Flavor;
+use pac::parse;
+
+let decl = parse::declaration("typedef unsigned long word_t;", Flavor::StdC11)?;
+let expr = parse::expression("ptr-&gt;field + 1", Flavor::GnuC11)?;
+<span class="boring">Ok::&lt;(), pac::parse::ParseError&gt;(())
+</span><span class="boring">}</span></code></pre>
+<p>This is the right workflow for:</p>
+<ul>
+<li>unit tests</li>
+<li>grammar debugging</li>
+<li>editor or language-server experiments</li>
+</ul>
+<h2 id="workflow-4-build-a-syntax-analyzer"><a class="header" href="#workflow-4-build-a-syntax-analyzer">Workflow 4: Build A Syntax Analyzer</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pac::driver::{parse, Config};
+use pac::visit::{self, Visit};
+use pac::{ast, span};
+
+struct ReturnCounter {
+    count: usize,
+}
+
+impl&lt;'ast&gt; Visit&lt;'ast&gt; for ReturnCounter {
+    fn visit_statement(&amp;mut self, node: &amp;'ast ast::Statement, span: &amp;'ast span::Span) {
+        if matches!(node, ast::Statement::Return(_)) {
+            self.count += 1;
+        }
+        visit::visit_statement(self, node, span);
+    }
+}
+
+let parsed = parse(&amp;Config::default(), "src/main.c")?;
+let mut counter = ReturnCounter { count: 0 };
+counter.visit_translation_unit(&amp;parsed.unit);
+println!("return statements: {}", counter.count);
+<span class="boring">Ok::&lt;(), pac::driver::Error&gt;(())
+</span><span class="boring">}</span></code></pre>
+<p>This is the normal PAC analyzer pattern:</p>
+<ol>
+<li>parse</li>
+<li>traverse</li>
+<li>inspect spans and locations</li>
+<li>emit your own diagnostics or analysis data</li>
+</ol>
+<h2 id="workflow-5-build-diagnostics-with-real-file-locations"><a class="header" href="#workflow-5-build-diagnostics-with-real-file-locations">Workflow 5: Build Diagnostics With Real File Locations</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pac::driver::{parse, Config};
+use pac::loc::get_location_for_offset;
+
+let parsed = parse(&amp;Config::default(), "src/main.c")?;
+
+for item in &amp;parsed.unit.0 {
+    let (loc, _) = get_location_for_offset(&amp;parsed.source, item.span.start);
+    println!("top-level item starts at {}:{}", loc.file, loc.line);
+}
+<span class="boring">Ok::&lt;(), pac::driver::Error&gt;(())
+</span><span class="boring">}</span></code></pre>
+<p>Use this when your users care about original file locations rather than raw byte offsets in the
+preprocessed stream.</p>
+<h2 id="workflow-6-debug-a-new-syntax-form"><a class="header" href="#workflow-6-debug-a-new-syntax-form">Workflow 6: Debug A New Syntax Form</a></h2>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pac::driver::Flavor;
+use pac::parse;
+use pac::print::Printer;
+use pac::visit::Visit;
+
+let expr = parse::expression("({ int x = 1; x + 1; })", Flavor::GnuC11)?;
+
+let mut out = String::new();
+Printer::new(&amp;mut out).visit_expression(&amp;expr.node, &amp;expr.span);
+println!("{}", out);
+<span class="boring">Ok::&lt;(), pac::parse::ParseError&gt;(())
+</span><span class="boring">}</span></code></pre>
+<p>This is the most effective loop when exploring unfamiliar AST shapes.</p>
+<h2 id="workflow-7-regression-test-a-parse-failure"><a class="header" href="#workflow-7-regression-test-a-parse-failure">Workflow 7: Regression-Test A Parse Failure</a></h2>
+<p>A practical bug workflow is:</p>
+<ol>
+<li>capture the smallest failing input</li>
+<li>decide whether preprocessing is relevant</li>
+<li>add a <code>parse_api</code> test or a reftest</li>
+<li>patch the grammar</li>
+<li>verify the printed AST or error outcome</li>
+</ol>
+<p>That keeps parser changes concrete and reviewable.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="error-surface"><a class="header" href="#error-surface">Error Surface</a></h1>
+<p>This chapter describes the error model PAC exposes today.</p>
+<h2 id="two-layers-of-errors"><a class="header" href="#two-layers-of-errors">Two layers of errors</a></h2>
+<p>PAC has two main error surfaces:</p>
+<ol>
+<li>direct parser errors from <code>parse</code></li>
+<li>driver errors from <code>driver</code></li>
+</ol>
+<p>The distinction is important because the driver includes external preprocessing.</p>
+<h2 id="direct-parser-errors"><a class="header" href="#direct-parser-errors">Direct parser errors</a></h2>
+<p>The <code>parse</code> module returns:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>Result&lt;T, pac::parse::ParseError&gt;
+<span class="boring">}</span></code></pre>
+<p><code>ParseError</code> includes:</p>
+<ul>
+<li><code>line</code></li>
+<li><code>column</code></li>
+<li><code>offset</code></li>
+<li><code>expected</code></li>
+</ul>
+<p>This error means:</p>
+<ul>
+<li>the parser could not consume the full input</li>
+<li>the failure happened at the given position</li>
+<li>one of the listed tokens or grammar expectations would have allowed parsing to continue</li>
+</ul>
+<h2 id="driver-errors"><a class="header" href="#driver-errors">Driver errors</a></h2>
+<p>The <code>driver</code> module returns:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>Result&lt;pac::driver::Parse, pac::driver::Error&gt;
+<span class="boring">}</span></code></pre>
+<p>That error enum has two branches:</p>
+<ul>
+<li><code>PreprocessorError(io::Error)</code></li>
+<li><code>SyntaxError(SyntaxError)</code></li>
+</ul>
+<p>This split is a real contract boundary:</p>
+<ul>
+<li>preprocessor failures mean PAC never reached parsing</li>
+<li>syntax failures mean preprocessing succeeded and PAC failed on the resulting text</li>
+</ul>
+<h2 id="syntaxerror"><a class="header" href="#syntaxerror"><code>SyntaxError</code></a></h2>
+<p><code>driver::SyntaxError</code> contains:</p>
+<ul>
+<li><code>source</code></li>
+<li><code>line</code></li>
+<li><code>column</code></li>
+<li><code>offset</code></li>
+<li><code>expected</code></li>
+</ul>
+<p>It also provides:</p>
+<ul>
+<li><code>get_location()</code> to map back to source files and include stack</li>
+<li><code>format_expected()</code> for user-facing token formatting</li>
+</ul>
+<h2 id="what-consumers-should-key-on"><a class="header" href="#what-consumers-should-key-on">What consumers should key on</a></h2>
+<p>For durable control flow, consumers should branch on:</p>
+<ul>
+<li>error type</li>
+<li>structured fields such as <code>line</code>, <code>column</code>, and <code>expected</code></li>
+</ul>
+<p>Consumers should not branch on:</p>
+<ul>
+<li>exact human-readable <code>Display</code> text</li>
+<li>incidental token ordering inside formatted strings</li>
+</ul>
+<h2 id="practical-examples"><a class="header" href="#practical-examples">Practical examples</a></h2>
+<h3 id="fragment-parsing"><a class="header" href="#fragment-parsing">Fragment parsing</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pac::driver::Flavor;
+use pac::parse;
+
+match parse::statement("if (x) {", Flavor::StdC11) {
+    Ok(_) =&gt; {}
+    Err(err) =&gt; {
+        eprintln!("statement parse failed at {}:{}", err.line, err.column);
+    }
+}
+<span class="boring">}</span></code></pre>
+<h3 id="file-parsing"><a class="header" href="#file-parsing">File parsing</a></h3>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use pac::driver::{parse, Config, Error};
+
+match parse(&amp;Config::default(), "broken.c") {
+    Ok(_) =&gt; {}
+    Err(Error::PreprocessorError(err)) =&gt; {
+        eprintln!("preprocessor failure: {}", err);
+    }
+    Err(Error::SyntaxError(err)) =&gt; {
+        let (loc, includes) = err.get_location();
+        eprintln!("syntax failure in {}:{} ({})", loc.file, loc.line, err.column);
+        eprintln!("include depth: {}", includes.len());
+    }
+}
+<span class="boring">}</span></code></pre>
+<h2 id="failure-model-guidance"><a class="header" href="#failure-model-guidance">Failure-model guidance</a></h2>
+<p>Downstream tools should treat parse failures as normal, reportable outcomes.</p>
+<p>That means:</p>
+<ul>
+<li>do not crash just because one translation unit fails</li>
+<li>surface the structured error data to the caller</li>
+<li>retain the preprocessed source when debugging hard failures</li>
+</ul>
+<h2 id="explicit-limitations-of-the-current-error-model"><a class="header" href="#explicit-limitations-of-the-current-error-model">Explicit limitations of the current error model</a></h2>
+<p>The current model does not provide:</p>
+<ul>
+<li>semantic diagnostics</li>
+<li>fix-it suggestions</li>
+<li>a typed taxonomy for every grammar category of failure</li>
+<li>warning channels separate from parse success</li>
+</ul>
+<p>PAC’s errors are syntax-oriented rather than compiler-like.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="flavor-and-extension-support"><a class="header" href="#flavor-and-extension-support">Flavor And Extension Support</a></h1>
+<p>PAC supports three language flavors and several extension families.</p>
+<p>This chapter records what that means in practice.</p>
+<h2 id="flavors"><a class="header" href="#flavors">Flavors</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Flavor</th><th>Intent</th></tr>
+</thead>
+<tbody>
+<tr><td><code>StdC11</code></td><td>strict C11 parsing</td></tr>
+<tr><td><code>GnuC11</code></td><td>C11 plus GNU-oriented syntax</td></tr>
+<tr><td><code>ClangC11</code></td><td>C11 plus Clang-oriented syntax</td></tr>
+</tbody>
+</table>
+</div>
+<p>Use the flavor that matches the syntax you expect in the input.</p>
+<h2 id="why-flavor-matters"><a class="header" href="#why-flavor-matters">Why flavor matters</a></h2>
+<p>Some C parses are ambiguous or extension-specific.</p>
+<p>Examples include:</p>
+<ul>
+<li>GNU statement expressions</li>
+<li><code>typeof</code></li>
+<li>GCC-style attributes</li>
+<li>GNU asm statements</li>
+<li>Clang availability attributes</li>
+</ul>
+<p>If you parse extension-heavy source in <code>StdC11</code>, errors are expected.</p>
+<h2 id="gnu-oriented-support"><a class="header" href="#gnu-oriented-support">GNU-oriented support</a></h2>
+<p>The AST and parser explicitly model GNU-oriented syntax such as:</p>
+<ul>
+<li><code>typeof</code></li>
+<li>statement expressions</li>
+<li>GNU asm statements</li>
+<li>asm labels</li>
+<li>attributes</li>
+<li>designated range initializers</li>
+</ul>
+<p>In practice, if the source is GCC-flavored or Linux-kernel-like, <code>GnuC11</code> is usually the right
+starting point.</p>
+<h2 id="clang-oriented-support"><a class="header" href="#clang-oriented-support">Clang-oriented support</a></h2>
+<p>PAC also models Clang-specific or Clang-common syntax including:</p>
+<ul>
+<li>Clang availability attributes</li>
+<li>the <code>ClangC11</code> flavor path in <code>driver</code> and <code>parse</code></li>
+</ul>
+<p>If your preprocessing and syntax assumptions are built around Clang, use <code>Config::with_clang()</code> or
+<code>Flavor::ClangC11</code>.</p>
+<h2 id="standard-mode-guidance"><a class="header" href="#standard-mode-guidance">Standard-mode guidance</a></h2>
+<p>Use <code>StdC11</code> when:</p>
+<ul>
+<li>you want to reject vendor syntax deliberately</li>
+<li>your test corpus is intended to stay close to the standard</li>
+<li>you want parser behavior that is easier to reason about across compilers</li>
+</ul>
+<h2 id="practical-consumer-policy"><a class="header" href="#practical-consumer-policy">Practical consumer policy</a></h2>
+<p>A useful integration policy is:</p>
+<ol>
+<li>default to the compiler family you actually preprocess with</li>
+<li>add tests for the specific extension families you rely on</li>
+<li>treat unsupported extensions as explicit parser limitations, not random bugs</li>
+</ol>
+<h2 id="what-this-chapter-does-not-claim"><a class="header" href="#what-this-chapter-does-not-claim">What this chapter does not claim</a></h2>
+<p>This chapter does not claim exhaustive support for every extension accepted by GCC or Clang.</p>
+<p>It does claim that PAC has explicit support for several important extension families and that the
+flavor setting is part of the API contract for using them correctly.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="unsupported-cases"><a class="header" href="#unsupported-cases">Unsupported Cases</a></h1>
+<p>This chapter records the important unsupported or intentionally out-of-scope areas.</p>
+<p>The goal is to prevent downstream users from mistaking absence of detail for implicit support.</p>
+<h2 id="semantic-analysis"><a class="header" href="#semantic-analysis">Semantic analysis</a></h2>
+<p>PAC does not provide:</p>
+<ul>
+<li>full name resolution</li>
+<li>type checking</li>
+<li>constant folding as a stable analysis contract</li>
+<li>ABI or layout proof</li>
+<li>compiler-quality warnings</li>
+</ul>
+<p>It is a parser with source-structure support, not a complete compiler frontend.</p>
+<h2 id="preprocessing"><a class="header" href="#preprocessing">Preprocessing</a></h2>
+<p>PAC does not implement a standalone C preprocessor in the <code>driver</code> path.</p>
+<p>Instead it depends on an external preprocessor command such as:</p>
+<ul>
+<li><code>gcc -E</code></li>
+<li><code>clang -E</code></li>
+</ul>
+<p>That means PAC does not try to normalize every compiler’s preprocessing behavior internally.</p>
+<h2 id="extension-completeness"><a class="header" href="#extension-completeness">Extension completeness</a></h2>
+<p>PAC supports several GNU and Clang extensions, but the project does not promise complete parity
+with every extension accepted by modern GCC or Clang releases.</p>
+<p>Downstream tools should not assume:</p>
+<ul>
+<li>full GNU extension completeness</li>
+<li>full Clang extension completeness</li>
+<li>identical acceptance behavior across all compiler-version-specific syntax edges</li>
+</ul>
+<h2 id="macro-inventory-and-expansion-modeling"><a class="header" href="#macro-inventory-and-expansion-modeling">Macro inventory and expansion modeling</a></h2>
+<p>PAC parses the post-preprocessing result. It does not expose a first-class macro inventory or a
+stable semantic model of macro definitions as its own output contract.</p>
+<p>If you need macro capture as data, that is outside PAC’s current scope.</p>
+<h2 id="translation-unit-semantics"><a class="header" href="#translation-unit-semantics">Translation-unit semantics</a></h2>
+<p>PAC can parse translation units, but it does not guarantee:</p>
+<ul>
+<li>cross-file symbol resolution</li>
+<li>duplicate-definition analysis as a stable feature</li>
+<li>semantic correctness of declarations</li>
+<li>linkability of parsed declarations</li>
+</ul>
+<p>Those tasks belong to later analysis layers, not the parser itself.</p>
+<h2 id="diagnostics-depth"><a class="header" href="#diagnostics-depth">Diagnostics depth</a></h2>
+<p>PAC does not currently provide:</p>
+<ul>
+<li>warning classes</li>
+<li>fix-it suggestions</li>
+<li>rich categorized error codes</li>
+<li>a stable diagnostic JSON schema</li>
+</ul>
+<p>The current error model is strong enough for syntax handling, not full compiler UX.</p>
+<h2 id="consumer-guidance"><a class="header" href="#consumer-guidance">Consumer guidance</a></h2>
+<p>Downstream tools should treat these gaps as explicit non-guarantees.</p>
+<p>That means:</p>
+<ul>
+<li>build policy around syntax success and failure, not semantic certainty</li>
+<li>isolate extension-heavy assumptions behind tests</li>
+<li>keep representative preprocessed fixtures for any hard parser dependency</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="reproducibility"><a class="header" href="#reproducibility">Reproducibility</a></h1>
+<p>Parsing C is sensitive to the exact preprocessor environment.</p>
+<p>This chapter documents how to keep PAC-based workflows reproducible.</p>
+<h2 id="main-reproducibility-risks"><a class="header" href="#main-reproducibility-risks">Main reproducibility risks</a></h2>
+<p>The biggest sources of drift are:</p>
+<ul>
+<li>different preprocessor executables</li>
+<li>different default include paths</li>
+<li>different predefined macros</li>
+<li>different parser flavor settings</li>
+<li>different preprocessed snapshots in tests</li>
+</ul>
+<h2 id="best-practices"><a class="header" href="#best-practices">Best practices</a></h2>
+<p>For durable automation:</p>
+<ol>
+<li>prefer explicit <code>Config</code> values over ambient defaults in CI</li>
+<li>pin include paths with <code>-I...</code> when they matter</li>
+<li>use <code>-nostdinc</code> for isolated fixture testing when appropriate</li>
+<li>keep preprocessed snapshots for hard parser regressions</li>
+<li>keep the parser flavor explicit in tests</li>
+</ol>
+<h2 id="deterministic-parse-debugging"><a class="header" href="#deterministic-parse-debugging">Deterministic parse debugging</a></h2>
+<p>If a real file parse is inconsistent across machines, a strong debugging move is:</p>
+<ol>
+<li>capture the preprocessed output</li>
+<li>switch the failing test to <code>parse_preprocessed</code></li>
+<li>debug PAC against the stable snapshot</li>
+</ol>
+<p>That separates:</p>
+<ul>
+<li>preprocessing differences</li>
+<li>parser differences</li>
+</ul>
+<h2 id="reftests-and-snapshots"><a class="header" href="#reftests-and-snapshots">Reftests and snapshots</a></h2>
+<p>The reftest harness already encourages deterministic expectations by comparing against printed AST
+output. For parser bugs that depend on preprocessing, a pinned <code>.i</code> file is often even better.</p>
+<h2 id="consumer-guidance-1"><a class="header" href="#consumer-guidance-1">Consumer guidance</a></h2>
+<p>If PAC is part of a larger pipeline, keep the following recorded somewhere durable:</p>
+<ul>
+<li>preprocessor executable</li>
+<li>preprocessor arguments</li>
+<li>flavor</li>
+<li>representative fixtures</li>
+<li>expected parse outcome</li>
+</ul>
+<p>Without that context, debugging parser regressions is much slower.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="stable-usage-patterns"><a class="header" href="#stable-usage-patterns">Stable Usage Patterns</a></h1>
+<p>This chapter records usage patterns that are safest for downstream consumers.</p>
+<h2 id="pattern-1-separate-parsing-from-analysis"><a class="header" href="#pattern-1-separate-parsing-from-analysis">Pattern 1: Separate parsing from analysis</a></h2>
+<p>A durable integration pattern is:</p>
+<ol>
+<li>parse with PAC</li>
+<li>convert the AST into your own analysis model if needed</li>
+<li>run later semantic or policy logic on that model</li>
+</ol>
+<p>This avoids coupling too much of your tool to every detail of PAC’s raw AST layout.</p>
+<h2 id="pattern-2-preserve-preprocessed-source-for-diagnostics"><a class="header" href="#pattern-2-preserve-preprocessed-source-for-diagnostics">Pattern 2: Preserve preprocessed source for diagnostics</a></h2>
+<p>If you use <code>driver</code>, keep <code>Parse::source</code> around as long as you may need diagnostics.</p>
+<p>That enables:</p>
+<ul>
+<li>mapping spans back to files and lines</li>
+<li>debugging parser failures later</li>
+<li>reproducing failures from stored snapshots</li>
+</ul>
+<h2 id="pattern-3-make-flavor-explicit"><a class="header" href="#pattern-3-make-flavor-explicit">Pattern 3: Make flavor explicit</a></h2>
+<p>Even when defaults are convenient, explicit flavor choices are easier to maintain in tools and
+tests.</p>
+<p>Prefer:</p>
+<ul>
+<li><code>Flavor::StdC11</code> for strict grammar tests</li>
+<li><code>Flavor::GnuC11</code> when GNU syntax is intentional</li>
+<li><code>Flavor::ClangC11</code> when Clang-specific syntax is intentional</li>
+</ul>
+<h2 id="pattern-4-test-the-syntax-you-depend-on"><a class="header" href="#pattern-4-test-the-syntax-you-depend-on">Pattern 4: Test the syntax you depend on</a></h2>
+<p>If your downstream tool depends on a specific syntax family, keep representative tests for it.</p>
+<p>Examples:</p>
+<ul>
+<li>function-pointer declarators</li>
+<li>designated initializers</li>
+<li>GNU statement expressions</li>
+<li>inline asm</li>
+<li>availability attributes</li>
+</ul>
+<h2 id="pattern-5-treat-parse-failure-as-data"><a class="header" href="#pattern-5-treat-parse-failure-as-data">Pattern 5: Treat parse failure as data</a></h2>
+<p>A mature integration does not assume every input will parse.
+It treats parse failure as a structured, reportable outcome.</p>
+<p>That means:</p>
+<ul>
+<li>returning parse diagnostics to the caller</li>
+<li>logging the failing source context when appropriate</li>
+<li>keeping failure fixtures in the test corpus</li>
+</ul>
+<h2 id="pattern-6-prefer-local-traversal-hooks"><a class="header" href="#pattern-6-prefer-local-traversal-hooks">Pattern 6: Prefer local traversal hooks</a></h2>
+<p>When building analyzers, override the narrowest useful visitor hook instead of one huge catch-all
+traversal method.</p>
+<p>That makes the analysis easier to maintain as the AST evolves.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="contributor-workflow-1"><a class="header" href="#contributor-workflow-1">Contributor Workflow</a></h1>
+<p>This chapter records a practical workflow for changing PAC safely.</p>
+<h2 id="smallest-reproducer-rule"><a class="header" href="#smallest-reproducer-rule">Smallest-reproducer rule</a></h2>
+<p>When fixing or extending the parser, start with the smallest input that demonstrates the issue.</p>
+<p>That input should usually be one of:</p>
+<ul>
+<li>a direct <code>parse::*</code> snippet</li>
+<li>a reftest file</li>
+<li>a preprocessed snapshot</li>
+</ul>
+<p>This keeps parser work focused.</p>
+<h2 id="recommended-change-sequence"><a class="header" href="#recommended-change-sequence">Recommended change sequence</a></h2>
+<ol>
+<li>reproduce the issue with the smallest possible input</li>
+<li>decide whether the right test layer is <code>parse_api</code>, reftest, or full-app style</li>
+<li>inspect the AST or failure position with <code>Printer</code> or structured errors</li>
+<li>patch the relevant parser module</li>
+<li>rerun the focused tests</li>
+<li>only then widen out to broader test coverage</li>
+</ol>
+<h2 id="choosing-the-right-test-layer"><a class="header" href="#choosing-the-right-test-layer">Choosing the right test layer</a></h2>
+<p>Use <code>parse_api</code> tests when:</p>
+<ul>
+<li>the bug is a simple grammar acceptance issue</li>
+<li>you only need a success/failure assertion</li>
+</ul>
+<p>Use reftests when:</p>
+<ul>
+<li>tree shape matters</li>
+<li>printer output is the clearest regression oracle</li>
+</ul>
+<p>Use preprocessed or full-app style fixtures when:</p>
+<ul>
+<li>includes or macro expansion are part of the problem</li>
+<li>driver behavior matters</li>
+</ul>
+<h2 id="grammar-oriented-debugging"><a class="header" href="#grammar-oriented-debugging">Grammar-oriented debugging</a></h2>
+<p>A good parser debugging loop is:</p>
+<ol>
+<li>isolate the failing syntax</li>
+<li>parse with the right flavor</li>
+<li>inspect the closest AST shape that already works</li>
+<li>patch the grammar in the most local parser file possible</li>
+</ol>
+<p>This is usually better than broad speculative rewrites.</p>
+<h2 id="ast-changes"><a class="header" href="#ast-changes">AST changes</a></h2>
+<p>If you add or change an AST node, review the corresponding surfaces too:</p>
+<ul>
+<li>visitor hooks in <code>visit</code></li>
+<li>printer behavior in <code>print</code></li>
+<li>any book examples that describe the shape</li>
+<li>reftest expectations if printer output changed</li>
+</ul>
+<h2 id="documentation-changes"><a class="header" href="#documentation-changes">Documentation changes</a></h2>
+<p>If a syntax family becomes better supported, update the book at the same time.
+The important places are usually:</p>
+<ul>
+<li>flavor/extension guidance</li>
+<li>unsupported cases</li>
+<li>workflows</li>
+<li>AST or visitor examples</li>
+</ul>
+<p>That keeps the book aligned with the real parser contract.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="support-tiers"><a class="header" href="#support-tiers">Support Tiers</a></h1>
+<p>This chapter records a practical support posture for PAC’s public surface.</p>
+<p>It is meant to help downstream users judge which parts of the crate are the safest long-term
+integration points.</p>
+<h2 id="tier-1-core-consumer-surface"><a class="header" href="#tier-1-core-consumer-surface">Tier 1: Core Consumer Surface</a></h2>
+<p>These are the most important public surfaces to depend on:</p>
+<ul>
+<li><code>driver</code></li>
+<li><code>parse</code></li>
+<li><code>ast</code></li>
+<li><code>visit</code></li>
+<li><code>span</code></li>
+<li><code>loc</code></li>
+</ul>
+<p>These modules define the main parsing contract of the crate.</p>
+<h2 id="tier-2-debugging-and-inspection-surface"><a class="header" href="#tier-2-debugging-and-inspection-surface">Tier 2: Debugging And Inspection Surface</a></h2>
+<p>These are public and useful, but more inspection-oriented than contract-critical:</p>
+<ul>
+<li><code>print</code></li>
+<li><code>Debug</code> views of AST nodes</li>
+<li>formatted error text</li>
+</ul>
+<p>They are valuable for debugging and tests, but long-lived tooling should still prefer structured
+data over formatted strings.</p>
+<h2 id="tier-3-contributor-oriented-knowledge"><a class="header" href="#tier-3-contributor-oriented-knowledge">Tier 3: Contributor-Oriented Knowledge</a></h2>
+<p>These are important for contributors but should not be treated as downstream contracts:</p>
+<ul>
+<li>parser file organization under <code>src/parser/</code></li>
+<li>helper-module layout</li>
+<li>incidental internal naming</li>
+<li>current implementation decomposition across grammar files</li>
+</ul>
+<p>These details may evolve as the parser changes.</p>
+<h2 id="consumer-guidance-2"><a class="header" href="#consumer-guidance-2">Consumer guidance</a></h2>
+<p>If you are building external tooling on top of PAC, bias toward Tier 1 surfaces first.
+Reach for Tier 2 when you need diagnostics or debugging support.
+Treat Tier 3 as implementation detail unless you are actively contributing to PAC itself.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="parser-boundaries"><a class="header" href="#parser-boundaries">Parser Boundaries</a></h1>
+<p>This chapter explains where PAC starts and where it intentionally stops.</p>
+<h2 id="pac-owns-syntax-parsing"><a class="header" href="#pac-owns-syntax-parsing">PAC owns syntax parsing</a></h2>
+<p>PAC is responsible for:</p>
+<ul>
+<li>accepting supported C syntax</li>
+<li>building an AST</li>
+<li>carrying spans</li>
+<li>mapping parse positions back through preprocessor line markers</li>
+</ul>
+<p>That is the core boundary of the crate.</p>
+<h2 id="pac-does-not-own-full-compilation"><a class="header" href="#pac-does-not-own-full-compilation">PAC does not own full compilation</a></h2>
+<p>PAC does not attempt to be:</p>
+<ul>
+<li>a full preprocessor implementation</li>
+<li>a type checker</li>
+<li>a linker-aware analyzer</li>
+<li>a code generator</li>
+<li>a full semantic compiler frontend</li>
+</ul>
+<p>These are not accidental omissions. They are part of the intended scope boundary.</p>
+<h2 id="practical-layering"><a class="header" href="#practical-layering">Practical layering</a></h2>
+<p>A healthy toolchain boundary looks like this:</p>
+<ol>
+<li>a compiler or preprocessor produces acceptable input</li>
+<li>PAC parses it</li>
+<li>a later layer performs semantic analysis, policy checks, or code generation</li>
+</ol>
+<p>This keeps PAC focused on syntax and source structure.</p>
+<h2 id="why-this-matters-for-consumers"><a class="header" href="#why-this-matters-for-consumers">Why this matters for consumers</a></h2>
+<p>If a downstream tool needs:</p>
+<ul>
+<li>ABI guarantees</li>
+<li>linker truth</li>
+<li>semantic type equivalence</li>
+<li>macro inventories as data</li>
+</ul>
+<p>then PAC should be one component in the pipeline, not the whole pipeline.</p>
+<h2 id="why-this-matters-for-contributors"><a class="header" href="#why-this-matters-for-contributors">Why this matters for contributors</a></h2>
+<p>When deciding whether a new feature belongs in PAC, a useful question is:</p>
+<p>“Does this improve PAC’s syntax parsing and source-structure contract, or does it drag PAC into a
+later compiler stage?”</p>
+<p>If it is mostly a later-stage concern, it probably belongs outside PAC.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="release-checklist"><a class="header" href="#release-checklist">Release Checklist</a></h1>
+<p>This chapter is a pragmatic checklist for documentation and parser changes before a release.</p>
+<h2 id="parser-changes"><a class="header" href="#parser-changes">Parser changes</a></h2>
+<p>Before releasing parser changes:</p>
+<ol>
+<li>confirm the smallest reproducer has a test</li>
+<li>confirm the intended flavor coverage is tested</li>
+<li>confirm the AST shape change is deliberate</li>
+<li>confirm visitor and printer behavior still make sense</li>
+</ol>
+<h2 id="book-changes"><a class="header" href="#book-changes">Book changes</a></h2>
+<p>Before releasing documentation changes:</p>
+<ol>
+<li>confirm the affected public behavior is described in the book</li>
+<li>confirm unsupported or out-of-scope cases are still documented honestly</li>
+<li>confirm examples still match the actual public API names</li>
+</ol>
+<h2 id="error-surface-changes"><a class="header" href="#error-surface-changes">Error-surface changes</a></h2>
+<p>Before releasing changes around errors:</p>
+<ol>
+<li>confirm structured fields still provide the needed information</li>
+<li>avoid treating formatted strings as the real contract</li>
+<li>update the error-surface chapter if the practical behavior changed</li>
+</ol>
+<h2 id="workflow-changes"><a class="header" href="#workflow-changes">Workflow changes</a></h2>
+<p>Before releasing changes to the normal integration path:</p>
+<ol>
+<li>update the workflow chapter</li>
+<li>update the API contract chapter if the preferred boundary changed</li>
+<li>update stable-usage guidance if downstream posture should change</li>
+</ol>
+<h2 id="final-practical-rule"><a class="header" href="#final-practical-rule">Final practical rule</a></h2>
+<p>If a change would force a downstream PAC consumer to rethink how it parses, traverses, or reports
+on source, the book should say so explicitly in the same change.</p>
 
                     </main>
 
