@@ -10,7 +10,7 @@ use std::process::Command;
 use crate::ast::TranslationUnit;
 use crate::env::Env;
 use crate::loc;
-use crate::parser::translation_unit;
+use crate::parser::{translation_unit, translation_unit_resilient};
 
 /// Parser configuration
 #[derive(Clone, Debug)]
@@ -186,6 +186,20 @@ pub fn parse_preprocessed(config: &Config, source: String) -> Result<Parse, Synt
             offset: err.offset,
             expected: err.expected,
         }),
+    }
+}
+
+pub fn parse_preprocessed_resilient(config: &Config, source: String) -> Parse {
+    let mut env = match config.flavor {
+        Flavor::StdC11 => Env::with_core(),
+        Flavor::GnuC11 => Env::with_gnu(),
+        Flavor::ClangC11 => Env::with_clang(),
+    };
+
+    let unit = translation_unit_resilient(&source, &mut env);
+    Parse {
+        source: source,
+        unit: unit,
     }
 }
 
