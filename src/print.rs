@@ -621,6 +621,7 @@ fn print_type_specifier<'ast>(p: &mut Printer, n: &'ast TypeSpecifier) {
         TypeSpecifier::Double => p.w.write_str(" Double").unwrap(),
         TypeSpecifier::Signed => p.w.write_str(" Signed").unwrap(),
         TypeSpecifier::Unsigned => p.w.write_str(" Unsigned").unwrap(),
+        TypeSpecifier::Bool => p.w.write_str(" Bool").unwrap(),
         TypeSpecifier::Complex => p.w.write_str(" Complex").unwrap(),
         TypeSpecifier::Atomic(_) => p.w.write_str(" Atomic").unwrap(),
         TypeSpecifier::TypedefName(_) => p.w.write_str(" TypedefName").unwrap(),

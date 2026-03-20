@@ -54,7 +54,11 @@ TranslationUnit
                     Statement
                         WhileStatement
                             Expression
-                                Identifier "true"
+                                Constant
+                                    Integer "1"
+                                        IntegerBase Decimal
+                                        IntegerSuffix false false
+                                            IntegerSize Int
                             Statement Compound
                                 BlockItem
                                     Declaration
@@ -77,7 +81,11 @@ TranslationUnit
                                                 DeclaratorKind
                                                     Identifier "a"
                             Expression
-                                Identifier "true"
+                                Constant
+                                    Integer "1"
+                                        IntegerBase Decimal
+                                        IntegerSuffix false false
+                                            IntegerSize Int
                 BlockItem
                     Declaration
                         DeclarationSpecifier

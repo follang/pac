@@ -57,6 +57,15 @@ pub const RESERVED_C11: &'static [&'static str] = &[
     "_Decimal64x",
     "_Decimal128",
     "_Decimal128x",
+    "bool",
+    "true",
+    "false",
+    "static_assert",
+    "alignas",
+    "alignof",
+    "thread_local",
+    "nullptr",
+    "constexpr",
 ];
 
 pub const RESERVED_GNU: &'static [&'static str] = &[
