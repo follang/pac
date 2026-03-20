@@ -68,3 +68,23 @@ That distinction matters:
 - Read [Driver API](./020_driver.md) or [Parser API](./030_parser.md) depending on your input
 - Read [AST Model](./040_ast.md) before writing analysis code
 - Read [Visitor Pattern](./050_visitor.md) if you want to walk the tree
+
+## Recommended reading order
+
+The book is now organized in a few larger blocks:
+
+1. Core parsing usage
+2. Diagnostics, locations, and testing
+3. Consumer contract and workflow guidance
+4. Support boundaries and unsupported cases
+5. Contributor-oriented project layout and workflow
+
+If you are integrating PAC into another tool, focus first on:
+
+- [Common Workflows](./015_workflows.md)
+- [Driver API](./020_driver.md)
+- [Parser API](./030_parser.md)
+- [AST Model](./040_ast.md)
+- [Visitor Pattern](./050_visitor.md)
+- [API Contract](./100_api_contract.md)
+- [End-To-End Workflows](./110_end_to_end_workflows.md)

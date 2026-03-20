@@ -78,3 +78,40 @@ A good change sequence is:
 3. inspect the tree with `Printer`
 4. patch the grammar or AST logic
 5. run `make test`
+
+## Why the parser is split this way
+
+The parser is organized by syntax areas because C grammar work tends to be local but not trivial.
+That split helps with three things:
+
+- keeping grammar changes reviewable
+- matching failures to the right part of the parser quickly
+- reducing the chance that one large parser file becomes impossible to maintain
+
+For example:
+
+- declaration bugs often land in `declarations_entry.rs`, `declarators.rs`, or related files
+- expression bugs often land in `primary_and_generic.rs`, `casts_and_binary.rs`, or nearby files
+- statement bugs often land in the `statements_*` files
+
+## Public versus internal boundaries
+
+These are normal consumer-facing modules:
+
+- `driver`
+- `parse`
+- `ast`
+- `visit`
+- `loc`
+- `span`
+- `print`
+
+These are implementation-oriented and should not be treated as a stable downstream boundary:
+
+- `parser`
+- `env`
+- `astutil`
+- `strings`
+
+That distinction matters when you are extending the book or the crate API. Documentation should
+prefer the consumer-facing modules unless the chapter is specifically contributor-oriented.
