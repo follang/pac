@@ -649,6 +649,10 @@ fn __parse_alignof0<'input>(__input: &'input str, __state: &mut ParseState<'inpu
                     match __choice_res {
                         Matched(__pos, __value) => Matched(__pos, __value),
                         Failed => {
+                            let __choice_res = slice_eq(__input, __state, __pos, "alignof");
+                            match __choice_res {
+                                Matched(__pos, __value) => Matched(__pos, __value),
+                                Failed => {
                             let __seq_res = {
                                 __state.suppress_fail += 1;
                                 let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
@@ -676,6 +680,8 @@ fn __parse_alignof0<'input>(__input: &'input str, __state: &mut ParseState<'inpu
                                     }
                                 }
                                 Failed => Failed,
+                            }
+                        }
                             }
                         }
                     }
