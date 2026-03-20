@@ -1,16 +1,19 @@
 [package]
 name = "pac"
-version = "0.15.1"
+version = "0.16.0"
 authors = ["Vickenty Fesunov <kent@setattr.net>"]
 edition = "2021"
 license = "MIT/Apache-2.0"
-description = "Lightweight C parser"
+description = "C language frontend: preprocessing, parsing, and source-level semantic extraction"
 include = [ "/src/**/*.rs", "Cargo.toml", "/LICENSE*", "/README.md" ]
 documentation = "https://docs.rs/pac"
 homepage = "https://github.com/vickenty/lang-c"
 repository = "https://github.com/vickenty/lang-c"
-keywords = [ "ast", "c", "parser", "c-language" ]
+keywords = [ "ast", "c", "parser", "ffi", "preprocessing" ]
 categories = [ "parser-implementations" ]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
 
 [features]
 dev-pegviz = [] # tests only: emit extra output for pegviz
