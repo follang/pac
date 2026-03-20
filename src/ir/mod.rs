@@ -26,7 +26,7 @@ pub use items::{
     SourceVariable,
 };
 pub use macros::{MacroForm, MacroKind, MacroValue, SourceMacro};
-pub use package::SourcePackage;
+pub use package::{SourcePackage, SourcePackageBuilder};
 pub use provenance::{DeclarationProvenance, MacroProvenance, SourceOrigin};
 pub use target::{SourceDefine, SourceInputs, SourceTarget};
 pub use types::{SourceType, TypeQualifiers};

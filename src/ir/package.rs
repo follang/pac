@@ -210,6 +210,61 @@ impl Default for SourcePackage {
     }
 }
 
+/// Builder for constructing a SourcePackage programmatically.
+///
+/// Useful for downstream consumers (e.g., bic migration) that need to
+/// build packages from non-extraction sources.
+pub struct SourcePackageBuilder {
+    package: SourcePackage,
+}
+
+impl SourcePackageBuilder {
+    pub fn new() -> Self {
+        Self {
+            package: SourcePackage::new(),
+        }
+    }
+
+    pub fn source_path(mut self, path: impl Into<String>) -> Self {
+        self.package.source_path = Some(path.into());
+        self
+    }
+
+    pub fn target(mut self, target: SourceTarget) -> Self {
+        self.package.target = target;
+        self
+    }
+
+    pub fn inputs(mut self, inputs: SourceInputs) -> Self {
+        self.package.inputs = inputs;
+        self
+    }
+
+    pub fn item(mut self, item: SourceItem) -> Self {
+        self.package.items.push(item);
+        self
+    }
+
+    pub fn items(mut self, items: impl IntoIterator<Item = SourceItem>) -> Self {
+        self.package.items.extend(items);
+        self
+    }
+
+    pub fn macro_entry(mut self, m: super::macros::SourceMacro) -> Self {
+        self.package.macros.push(m);
+        self
+    }
+
+    pub fn diagnostic(mut self, d: super::diagnostics::SourceDiagnostic) -> Self {
+        self.package.diagnostics.push(d);
+        self
+    }
+
+    pub fn build(self) -> SourcePackage {
+        self.package
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -453,5 +508,29 @@ mod tests {
         let counts = pkg.diagnostics_count_by_kind();
         assert_eq!(counts["DeclarationPartial"], 2);
         assert_eq!(counts["ParseFailed"], 1);
+    }
+
+    #[test]
+    fn builder_constructs_package() {
+        let pkg = SourcePackageBuilder::new()
+            .source_path("test.h")
+            .item(SourceItem::Function(SourceFunction {
+                name: "foo".into(),
+                calling_convention: CallingConvention::C,
+                parameters: vec![],
+                return_type: SourceType::Void,
+                variadic: false,
+                source_offset: None,
+            }))
+            .item(SourceItem::Variable(SourceVariable {
+                name: "bar".into(),
+                ty: SourceType::Int,
+                source_offset: None,
+            }))
+            .build();
+
+        assert_eq!(pkg.source_path.as_deref(), Some("test.h"));
+        assert_eq!(pkg.function_count(), 1);
+        assert_eq!(pkg.variable_count(), 1);
     }
 }
