@@ -7,15 +7,16 @@ downstream tools should integrate with the crate without depending on internal p
 
 ## First Principle
 
-`pac` is a parsing library.
+`pac` is a C language frontend: preprocessing, parsing, and source-level semantic extraction.
 
 The intended downstream pattern is:
 
-1. parse source with `driver` or `parse`
-2. consume typed AST values from `ast`
-3. use `visit`, `span`, and `loc` to analyze and report on those values
+1. scan headers or parse source via `driver`, `scan`, or `parse`
+2. extract normalized declarations via `extract`
+3. consume the `SourcePackage` IR from `ir`
+4. use `visit`, `span`, and `loc` to analyze AST-level details if needed
 
-Consumers should treat parser internals as implementation, not as the main integration surface.
+Downstream consumers (LINC, GERC) should depend on `pac::ir`, not on `pac::ast` directly.
 
 ## Preferred public surface
 
@@ -23,10 +24,14 @@ These are the main consumer-facing modules:
 
 | Module | Role | Current expectation |
 | --- | --- | --- |
-| `pac::driver` | parse files and preprocessed source | preferred high-level entry point |
+| `pac::ir` | source-level IR (`SourcePackage`) | **preferred data contract** |
+| `pac::extract` | declaration extraction from AST | preferred extraction entry point |
+| `pac::scan` | header scanning (preprocess + extract) | preferred high-level entry point |
+| `pac::intake` | preprocessed source intake | preferred for already-preprocessed source |
+| `pac::driver` | parse files and preprocessed source | preferred parse entry point |
 | `pac::preprocess` | built-in C preprocessor | preferred preprocessing entry point |
 | `pac::parse` | parse string fragments directly | preferred low-level entry point |
-| `pac::ast` | typed syntax tree | preferred data contract |
+| `pac::ast` | typed syntax tree | internal data model |
 | `pac::visit` | recursive traversal hooks | preferred traversal API |
 | `pac::span` | byte-range metadata | preferred location primitive |
 | `pac::loc` | map offsets back to files/lines | preferred diagnostics helper |
