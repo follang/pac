@@ -241,6 +241,54 @@ pub fn parse_builtin<P: AsRef<Path>>(
     Ok(parse_preprocessed(config, source_text)?)
 }
 
+/// Extract all macros defined after preprocessing a C file.
+///
+/// This is the built-in equivalent of `gcc -dD -E`: it preprocesses the
+/// file and returns every `#define` that was active at the end of
+/// preprocessing, including predefined target macros and macros from
+/// included headers.
+pub fn capture_macros<P: AsRef<Path>>(
+    source: P,
+    include_paths: &[&Path],
+) -> Result<Vec<(String, String)>, Error> {
+    use crate::preprocess::{
+        define_target_macros, tokens_to_text, IncludeResolver, Processor, Target,
+    };
+
+    let target = Target::host();
+    let mut table = crate::preprocess::MacroTable::new();
+    define_target_macros(&mut table, &target);
+
+    let mut processor = Processor::with_macros(table);
+    let mut resolver = IncludeResolver::new();
+
+    for path in include_paths {
+        resolver.add_system_path(path);
+        resolver.add_local_path(path);
+    }
+
+    let result = resolver.preprocess_file(source.as_ref(), &mut processor);
+
+    if !result.errors.is_empty() {
+        return Err(Error::PreprocessorError(io::Error::new(
+            io::ErrorKind::Other,
+            result.errors.join("\n"),
+        )));
+    }
+
+    let mut macros: Vec<(String, String)> = processor
+        .macros()
+        .all()
+        .map(|def| {
+            let value = tokens_to_text(&def.body);
+            (def.name.clone(), value.trim().to_string())
+        })
+        .collect();
+    macros.sort_by(|a, b| a.0.cmp(&b.0));
+
+    Ok(macros)
+}
+
 fn preprocess(config: &Config, source: &Path) -> io::Result<String> {
     let mut cmd = Command::new(&config.cpp_command);
 

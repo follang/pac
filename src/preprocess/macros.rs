@@ -44,6 +44,21 @@ impl MacroTable {
         self.macros.get(name)
     }
 
+    /// Return all macro definitions.
+    pub fn all(&self) -> impl Iterator<Item = &MacroDef> {
+        self.macros.values()
+    }
+
+    /// Return all macro names.
+    pub fn names(&self) -> impl Iterator<Item = &str> {
+        self.macros.keys().map(|s| s.as_str())
+    }
+
+    /// Number of defined macros.
+    pub fn len(&self) -> usize {
+        self.macros.len()
+    }
+
     /// Expand all object-like macros in a token list.
     ///
     /// Performs repeated passes until no more expansions occur.
