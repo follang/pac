@@ -65,6 +65,11 @@ If you are building on top of `pac`, the safest current rules are:
 
 Today the strongest practical contract is:
 
+- `ir::SourcePackage`, `SourceType`, `SourceItem`, and all IR types — the primary data contract
+- `extract::extract_from_source`, `extract_from_translation_unit`, `parse_and_extract`, `parse_and_extract_resilient`
+- `scan::ScanConfig`, `scan_headers`, `ScanResult`
+- `intake::PreprocessedInput`
+- `ir::SourcePackageBuilder` — programmatic package construction
 - `driver::Config`, `Flavor`, `Parse`, `Error`, `SyntaxError`, `parse_builtin`, and `capture_macros`
 - `preprocess::{Processor, IncludeResolver, MacroTable, Lexer, preprocess, tokens_to_text, Target, define_target_macros}`
 - `parse::{constant, expression, declaration, statement, translation_unit, translation_unit_resilient}`
@@ -102,7 +107,9 @@ Those are outside the scope of PAC as a parser library.
 
 For long-lived integrations, the safest posture is:
 
-1. keep your entry points at `driver` and `parse`
-2. convert ASTs into your own analysis model if you need stricter invariants
-3. treat unsupported syntax and parser errors as normal outcomes
-4. keep tests with representative preprocessed inputs for the syntax families you depend on
+1. use `scan` or `extract` as your primary entry point — these produce `SourcePackage`
+2. consume `ir::SourcePackage` rather than raw AST types where possible
+3. use `driver` and `parse` only when you need AST-level access
+4. treat unsupported syntax and parser errors as normal outcomes
+5. keep tests with representative preprocessed inputs for the syntax families you depend on
+6. see [Migration From bic](./210_migration_from_bic.md) if you are transitioning from `bic`
