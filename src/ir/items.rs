@@ -59,6 +59,70 @@ impl SourceItem {
             SourceItem::Unsupported(u) => u.source_offset,
         }
     }
+
+    pub fn is_function(&self) -> bool {
+        matches!(self, SourceItem::Function(_))
+    }
+
+    pub fn is_record(&self) -> bool {
+        matches!(self, SourceItem::Record(_))
+    }
+
+    pub fn is_enum(&self) -> bool {
+        matches!(self, SourceItem::Enum(_))
+    }
+
+    pub fn is_type_alias(&self) -> bool {
+        matches!(self, SourceItem::TypeAlias(_))
+    }
+
+    pub fn is_variable(&self) -> bool {
+        matches!(self, SourceItem::Variable(_))
+    }
+
+    pub fn is_unsupported(&self) -> bool {
+        matches!(self, SourceItem::Unsupported(_))
+    }
+
+    /// Get the function payload if this is a Function item.
+    pub fn as_function(&self) -> Option<&SourceFunction> {
+        match self {
+            SourceItem::Function(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    /// Get the record payload if this is a Record item.
+    pub fn as_record(&self) -> Option<&SourceRecord> {
+        match self {
+            SourceItem::Record(r) => Some(r),
+            _ => None,
+        }
+    }
+
+    /// Get the enum payload if this is an Enum item.
+    pub fn as_enum(&self) -> Option<&SourceEnum> {
+        match self {
+            SourceItem::Enum(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Get the type alias payload if this is a TypeAlias item.
+    pub fn as_type_alias(&self) -> Option<&SourceTypeAlias> {
+        match self {
+            SourceItem::TypeAlias(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// Get the variable payload if this is a Variable item.
+    pub fn as_variable(&self) -> Option<&SourceVariable> {
+        match self {
+            SourceItem::Variable(v) => Some(v),
+            _ => None,
+        }
+    }
 }
 
 /// Calling convention annotation from source.
@@ -361,6 +425,40 @@ mod tests {
             let back: SourceItem = serde_json::from_str(&json).unwrap();
             assert_eq!(*item, back);
         }
+    }
+
+    #[test]
+    fn source_item_type_checks() {
+        let f = SourceItem::Function(sample_function());
+        assert!(f.is_function());
+        assert!(!f.is_record());
+        assert!(f.as_function().is_some());
+        assert!(f.as_record().is_none());
+
+        let r = SourceItem::Record(sample_record());
+        assert!(r.is_record());
+        assert!(!f.is_enum());
+        assert!(r.as_record().is_some());
+
+        let e = SourceItem::Enum(sample_enum());
+        assert!(e.is_enum());
+        assert!(e.as_enum().is_some());
+
+        let t = SourceItem::TypeAlias(SourceTypeAlias {
+            name: "t".into(),
+            target: SourceType::Int,
+            source_offset: None,
+        });
+        assert!(t.is_type_alias());
+        assert!(t.as_type_alias().is_some());
+
+        let v = SourceItem::Variable(SourceVariable {
+            name: "v".into(),
+            ty: SourceType::Int,
+            source_offset: None,
+        });
+        assert!(v.is_variable());
+        assert!(v.as_variable().is_some());
     }
 
     #[test]
