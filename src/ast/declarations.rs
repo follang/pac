@@ -38,6 +38,7 @@ pub enum StorageClassSpecifier {
     ThreadLocal,
     Auto,
     Register,
+    Constexpr,
 }
 
 // From 6.7.2

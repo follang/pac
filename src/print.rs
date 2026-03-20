@@ -306,6 +306,7 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             StorageClassSpecifier::ThreadLocal => "ThreadLocal",
             StorageClassSpecifier::Auto => "Auto",
             StorageClassSpecifier::Register => "Register",
+            StorageClassSpecifier::Constexpr => "Constexpr",
         });
         visit_storage_class_specifier(&mut self.block(), n, span);
     }
