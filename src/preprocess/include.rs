@@ -376,7 +376,7 @@ mod tests {
     #[test]
     fn resolve_local_path() {
         let mut resolver = IncludeResolver::new();
-        resolver.add_local_path("/home/bresilla/data/code/bresilla/pac/src");
+        resolver.add_local_path(Path::new(env!("CARGO_MANIFEST_DIR")).join("src"));
         let result = resolver.resolve("lib.rs", false);
         assert!(result.is_some());
     }
@@ -384,7 +384,7 @@ mod tests {
     #[test]
     fn resolve_system_path() {
         let mut resolver = IncludeResolver::new();
-        resolver.add_system_path("/home/bresilla/data/code/bresilla/pac/src");
+        resolver.add_system_path(Path::new(env!("CARGO_MANIFEST_DIR")).join("src"));
         let result = resolver.resolve("lib.rs", true);
         assert!(result.is_some());
     }
@@ -392,7 +392,7 @@ mod tests {
     #[test]
     fn resolve_relative_to_current() {
         let mut resolver = IncludeResolver::new();
-        resolver.current_dir = Some(PathBuf::from("/home/bresilla/data/code/bresilla/pac/src"));
+        resolver.current_dir = Some(Path::new(env!("CARGO_MANIFEST_DIR")).join("src"));
         let result = resolver.resolve("lib.rs", false);
         assert!(result.is_some());
     }
