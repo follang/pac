@@ -143,8 +143,33 @@ impl<'a> Lexer<'a> {
                 self.lex_number(start)
             }
             _ => {
-                self.pos += 1;
                 self.at_line_start = false;
+                // Multi-character operators
+                let next = self.peek(1);
+                let len = match (b, next) {
+                    (b'<', Some(b'<')) | (b'>', Some(b'>')) => {
+                        if self.peek(2) == Some(b'=') { 3 } else { 2 }
+                    }
+                    (b'=', Some(b'='))
+                    | (b'!', Some(b'='))
+                    | (b'<', Some(b'='))
+                    | (b'>', Some(b'='))
+                    | (b'&', Some(b'&'))
+                    | (b'|', Some(b'|'))
+                    | (b'+', Some(b'+'))
+                    | (b'-', Some(b'-'))
+                    | (b'-', Some(b'>'))
+                    | (b'+', Some(b'='))
+                    | (b'-', Some(b'='))
+                    | (b'*', Some(b'='))
+                    | (b'/', Some(b'='))
+                    | (b'%', Some(b'='))
+                    | (b'&', Some(b'='))
+                    | (b'|', Some(b'='))
+                    | (b'^', Some(b'=')) => 2,
+                    _ => 1,
+                };
+                self.pos += len;
                 let text = std::str::from_utf8(&self.input[start..self.pos])
                     .unwrap_or("?")
                     .to_owned();
