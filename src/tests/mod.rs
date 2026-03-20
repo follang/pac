@@ -2,6 +2,7 @@ mod contract;
 mod external_tools;
 mod extraction_fixtures;
 mod full_apps;
+mod hostile_headers;
 mod parse_api;
 mod reftests;
 mod support;
