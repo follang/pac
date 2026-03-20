@@ -1,5 +1,7 @@
 //! Top-level source package for the PARC frontend contract.
 
+use std::collections::{HashMap, HashSet};
+
 use serde::{Deserialize, Serialize};
 
 use super::diagnostics::SourceDiagnostic;
@@ -10,6 +12,7 @@ use super::items::{
 use super::macros::SourceMacro;
 use super::provenance::{DeclarationProvenance, MacroProvenance};
 use super::target::{SourceInputs, SourceTarget};
+use super::types::SourceType;
 
 pub const SCHEMA_VERSION: u32 = 1;
 
@@ -194,13 +197,127 @@ impl SourcePackage {
     }
 
     /// Return a summary of diagnostic counts by kind.
-    pub fn diagnostics_count_by_kind(&self) -> std::collections::HashMap<String, usize> {
-        let mut counts = std::collections::HashMap::new();
+    pub fn diagnostics_count_by_kind(&self) -> HashMap<String, usize> {
+        let mut counts = HashMap::new();
         for d in &self.diagnostics {
             let key = format!("{:?}", d.kind);
             *counts.entry(key).or_insert(0) += 1;
         }
         counts
+    }
+
+    /// Build a typedef lookup table from this package's type aliases.
+    fn typedef_table(&self) -> HashMap<&str, &SourceType> {
+        self.type_aliases()
+            .map(|ta| (ta.name.as_str(), &ta.target))
+            .collect()
+    }
+
+    /// Transitively resolve a type, following `TypedefRef` chains to the
+    /// underlying concrete type.
+    ///
+    /// Also recurses into Pointer pointees, Array elements, FunctionPointer
+    /// return types and parameters, and Qualified inner types.
+    ///
+    /// Cycles are detected and left as `TypedefRef` to avoid infinite loops.
+    pub fn resolve_type(&self, ty: &SourceType) -> SourceType {
+        let table = self.typedef_table();
+        resolve_type_rec(ty, &table, &mut HashSet::new())
+    }
+
+    /// Resolve all `TypedefRef` occurrences in every item in place.
+    ///
+    /// After calling this, function parameters, return types, record fields,
+    /// variable types, and type alias targets will have their `TypedefRef`
+    /// chains fully resolved to concrete types.
+    pub fn resolve_all_typedefs(&mut self) {
+        let table: HashMap<String, SourceType> = self
+            .type_aliases()
+            .map(|ta| (ta.name.clone(), ta.target.clone()))
+            .collect();
+
+        let ref_table: HashMap<&str, &SourceType> =
+            table.iter().map(|(k, v)| (k.as_str(), v)).collect();
+
+        for item in &mut self.items {
+            match item {
+                SourceItem::Function(f) => {
+                    f.return_type =
+                        resolve_type_rec(&f.return_type, &ref_table, &mut HashSet::new());
+                    for param in &mut f.parameters {
+                        param.ty = resolve_type_rec(&param.ty, &ref_table, &mut HashSet::new());
+                    }
+                }
+                SourceItem::Record(r) => {
+                    if let Some(fields) = &mut r.fields {
+                        for field in fields {
+                            field.ty =
+                                resolve_type_rec(&field.ty, &ref_table, &mut HashSet::new());
+                        }
+                    }
+                }
+                SourceItem::TypeAlias(ta) => {
+                    ta.target = resolve_type_rec(&ta.target, &ref_table, &mut HashSet::new());
+                }
+                SourceItem::Variable(v) => {
+                    v.ty = resolve_type_rec(&v.ty, &ref_table, &mut HashSet::new());
+                }
+                SourceItem::Enum(_) | SourceItem::Unsupported(_) => {}
+            }
+        }
+    }
+}
+
+/// Recursively resolve a SourceType, following TypedefRef chains.
+fn resolve_type_rec(
+    ty: &SourceType,
+    table: &HashMap<&str, &SourceType>,
+    visited: &mut HashSet<String>,
+) -> SourceType {
+    match ty {
+        SourceType::TypedefRef(name) => {
+            if visited.contains(name.as_str()) {
+                // Cycle detected — leave unresolved
+                return ty.clone();
+            }
+            match table.get(name.as_str()) {
+                Some(target) => {
+                    visited.insert(name.clone());
+                    let resolved = resolve_type_rec(target, table, visited);
+                    visited.remove(name.as_str());
+                    resolved
+                }
+                None => ty.clone(), // Unknown typedef — leave as-is
+            }
+        }
+        SourceType::Pointer {
+            pointee,
+            qualifiers,
+        } => SourceType::Pointer {
+            pointee: Box::new(resolve_type_rec(pointee, table, visited)),
+            qualifiers: *qualifiers,
+        },
+        SourceType::Array(elem, size) => {
+            SourceType::Array(Box::new(resolve_type_rec(elem, table, visited)), *size)
+        }
+        SourceType::Qualified { ty: inner, qualifiers } => {
+            let resolved = resolve_type_rec(inner, table, visited);
+            SourceType::qualified(resolved, *qualifiers)
+        }
+        SourceType::FunctionPointer {
+            return_type,
+            parameters,
+            variadic,
+        } => SourceType::FunctionPointer {
+            return_type: Box::new(resolve_type_rec(return_type, table, visited)),
+            parameters: parameters
+                .iter()
+                .map(|p| resolve_type_rec(p, table, visited))
+                .collect(),
+            variadic: *variadic,
+        },
+        // Primitives, RecordRef, EnumRef, Opaque — no resolution needed
+        other => other.clone(),
     }
 }
 
@@ -532,5 +649,200 @@ mod tests {
         assert_eq!(pkg.source_path.as_deref(), Some("test.h"));
         assert_eq!(pkg.function_count(), 1);
         assert_eq!(pkg.variable_count(), 1);
+    }
+
+    #[test]
+    fn resolve_type_simple_typedef() {
+        let mut pkg = SourcePackage::new();
+        pkg.items.push(SourceItem::TypeAlias(SourceTypeAlias {
+            name: "my_int".into(),
+            target: SourceType::Int,
+            source_offset: None,
+        }));
+
+        let resolved = pkg.resolve_type(&SourceType::TypedefRef("my_int".into()));
+        assert_eq!(resolved, SourceType::Int);
+    }
+
+    #[test]
+    fn resolve_type_chain() {
+        let mut pkg = SourcePackage::new();
+        pkg.items.push(SourceItem::TypeAlias(SourceTypeAlias {
+            name: "uint32_t".into(),
+            target: SourceType::UInt,
+            source_offset: None,
+        }));
+        pkg.items.push(SourceItem::TypeAlias(SourceTypeAlias {
+            name: "my_uint".into(),
+            target: SourceType::TypedefRef("uint32_t".into()),
+            source_offset: None,
+        }));
+        pkg.items.push(SourceItem::TypeAlias(SourceTypeAlias {
+            name: "handle_t".into(),
+            target: SourceType::TypedefRef("my_uint".into()),
+            source_offset: None,
+        }));
+
+        // 3-deep chain: handle_t -> my_uint -> uint32_t -> UInt
+        let resolved = pkg.resolve_type(&SourceType::TypedefRef("handle_t".into()));
+        assert_eq!(resolved, SourceType::UInt);
+    }
+
+    #[test]
+    fn resolve_type_through_pointer() {
+        let mut pkg = SourcePackage::new();
+        pkg.items.push(SourceItem::TypeAlias(SourceTypeAlias {
+            name: "size_t".into(),
+            target: SourceType::ULong,
+            source_offset: None,
+        }));
+
+        // const size_t * -> const unsigned long *
+        let ty = SourceType::const_ptr(SourceType::TypedefRef("size_t".into()));
+        let resolved = pkg.resolve_type(&ty);
+        assert_eq!(resolved, SourceType::const_ptr(SourceType::ULong));
+    }
+
+    #[test]
+    fn resolve_type_unknown_typedef_preserved() {
+        let pkg = SourcePackage::new();
+        // Unknown typedef stays as TypedefRef
+        let resolved = pkg.resolve_type(&SourceType::TypedefRef("unknown_t".into()));
+        assert_eq!(resolved, SourceType::TypedefRef("unknown_t".into()));
+    }
+
+    #[test]
+    fn resolve_type_cycle_detection() {
+        let mut pkg = SourcePackage::new();
+        // Create a cycle: a -> b -> a
+        pkg.items.push(SourceItem::TypeAlias(SourceTypeAlias {
+            name: "a".into(),
+            target: SourceType::TypedefRef("b".into()),
+            source_offset: None,
+        }));
+        pkg.items.push(SourceItem::TypeAlias(SourceTypeAlias {
+            name: "b".into(),
+            target: SourceType::TypedefRef("a".into()),
+            source_offset: None,
+        }));
+
+        // Should not infinite loop — cycle leaves TypedefRef in place
+        let resolved = pkg.resolve_type(&SourceType::TypedefRef("a".into()));
+        // Will be TypedefRef("a") since the cycle is detected
+        assert!(matches!(resolved, SourceType::TypedefRef(_)));
+    }
+
+    #[test]
+    fn resolve_type_in_function_pointer() {
+        let mut pkg = SourcePackage::new();
+        pkg.items.push(SourceItem::TypeAlias(SourceTypeAlias {
+            name: "my_int".into(),
+            target: SourceType::Int,
+            source_offset: None,
+        }));
+
+        let fp = SourceType::FunctionPointer {
+            return_type: Box::new(SourceType::TypedefRef("my_int".into())),
+            parameters: vec![SourceType::TypedefRef("my_int".into())],
+            variadic: false,
+        };
+        let resolved = pkg.resolve_type(&fp);
+        match resolved {
+            SourceType::FunctionPointer {
+                return_type,
+                parameters,
+                ..
+            } => {
+                assert_eq!(*return_type, SourceType::Int);
+                assert_eq!(parameters[0], SourceType::Int);
+            }
+            other => panic!("expected FunctionPointer, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn resolve_type_in_array() {
+        let mut pkg = SourcePackage::new();
+        pkg.items.push(SourceItem::TypeAlias(SourceTypeAlias {
+            name: "elem_t".into(),
+            target: SourceType::Double,
+            source_offset: None,
+        }));
+
+        let arr = SourceType::Array(Box::new(SourceType::TypedefRef("elem_t".into())), Some(10));
+        let resolved = pkg.resolve_type(&arr);
+        assert_eq!(
+            resolved,
+            SourceType::Array(Box::new(SourceType::Double), Some(10))
+        );
+    }
+
+    #[test]
+    fn resolve_all_typedefs_full() {
+        use crate::extract;
+
+        let src = r#"
+typedef unsigned int uint32_t;
+typedef uint32_t my_uint;
+
+struct config {
+    my_uint flags;
+    const my_uint *data;
+};
+
+my_uint get_value(const my_uint *ptr);
+extern my_uint global;
+"#;
+        let mut pkg = extract::extract_from_source(src).unwrap();
+
+        // Before resolution: types reference "my_uint" and "uint32_t"
+        let f = pkg.find_function("get_value").unwrap();
+        assert_eq!(
+            f.return_type,
+            SourceType::TypedefRef("my_uint".into())
+        );
+
+        // Resolve
+        pkg.resolve_all_typedefs();
+
+        // After resolution: all TypedefRef chains resolved to UInt
+        let f = pkg.find_function("get_value").unwrap();
+        assert_eq!(f.return_type, SourceType::UInt);
+        assert_eq!(f.parameters[0].ty, SourceType::const_ptr(SourceType::UInt));
+
+        let v = pkg.find_variable("global").unwrap();
+        assert_eq!(v.ty, SourceType::UInt);
+
+        let config = pkg.find_record("config").unwrap();
+        let fields = config.fields.as_ref().unwrap();
+        assert_eq!(fields[0].ty, SourceType::UInt);
+        assert_eq!(fields[1].ty, SourceType::const_ptr(SourceType::UInt));
+
+        // Type aliases themselves are also resolved
+        let my_uint = pkg.find_type_alias("my_uint").unwrap();
+        assert_eq!(my_uint.target, SourceType::UInt);
+    }
+
+    #[test]
+    fn resolve_all_typedefs_preserves_record_and_enum_refs() {
+        use crate::extract;
+
+        let src = r#"
+struct point { int x; int y; };
+enum color { RED, GREEN, BLUE };
+typedef struct point point_t;
+void draw(point_t p, enum color c);
+"#;
+        let mut pkg = extract::extract_from_source(src).unwrap();
+        pkg.resolve_all_typedefs();
+
+        // point_t -> RecordRef("point"), not further resolved
+        let alias = pkg.find_type_alias("point_t").unwrap();
+        assert_eq!(alias.target, SourceType::RecordRef("point".into()));
+
+        // draw's first param was point_t -> resolves to RecordRef("point")
+        let draw = pkg.find_function("draw").unwrap();
+        assert_eq!(draw.parameters[0].ty, SourceType::RecordRef("point".into()));
+        assert_eq!(draw.parameters[1].ty, SourceType::EnumRef("color".into()));
     }
 }
