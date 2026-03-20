@@ -11,12 +11,18 @@
 //! Downstream consumers (LINC, GERC) should depend only on these types,
 //! never on `pac::ast` directly.
 
+pub mod diagnostics;
 pub mod items;
+pub mod macros;
+pub mod provenance;
 pub mod types;
 
+pub use diagnostics::{DiagnosticKind, Severity, SourceDiagnostic, SourceLocation};
 pub use items::{
     CallingConvention, RecordKind, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,
     SourceItem, SourceItemKind, SourceParameter, SourceRecord, SourceTypeAlias, SourceUnsupported,
     SourceVariable,
 };
+pub use macros::{MacroForm, MacroKind, MacroValue, SourceMacro};
+pub use provenance::{DeclarationProvenance, MacroProvenance, SourceOrigin};
 pub use types::{SourceType, TypeQualifiers};
