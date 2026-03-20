@@ -203,6 +203,44 @@ pub fn parse_preprocessed_resilient(config: &Config, source: String) -> Parse {
     }
 }
 
+/// Parse a C file using the built-in preprocessor (no external gcc/clang needed).
+///
+/// Include paths should be provided in `include_paths`. The target is
+/// auto-detected from the host platform.
+pub fn parse_builtin<P: AsRef<Path>>(
+    config: &Config,
+    source: P,
+    include_paths: &[&Path],
+) -> Result<Parse, Error> {
+    use crate::preprocess::{
+        define_target_macros, IncludeResolver, Processor, Target, tokens_to_text,
+    };
+
+    let target = Target::host();
+    let mut table = crate::preprocess::MacroTable::new();
+    define_target_macros(&mut table, &target);
+
+    let mut processor = Processor::with_macros(table);
+    let mut resolver = IncludeResolver::new();
+
+    for path in include_paths {
+        resolver.add_system_path(path);
+        resolver.add_local_path(path);
+    }
+
+    let result = resolver.preprocess_file(source.as_ref(), &mut processor);
+
+    if !result.errors.is_empty() {
+        return Err(Error::PreprocessorError(io::Error::new(
+            io::ErrorKind::Other,
+            result.errors.join("\n"),
+        )));
+    }
+
+    let source_text = tokens_to_text(&result.tokens);
+    Ok(parse_preprocessed(config, source_text)?)
+}
+
 fn preprocess(config: &Config, source: &Path) -> io::Result<String> {
     let mut cmd = Command::new(&config.cpp_command);
 
