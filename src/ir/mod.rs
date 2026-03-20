@@ -11,6 +11,12 @@
 //! Downstream consumers (LINC, GERC) should depend only on these types,
 //! never on `pac::ast` directly.
 
+pub mod items;
 pub mod types;
 
+pub use items::{
+    CallingConvention, RecordKind, SourceEnum, SourceEnumVariant, SourceField, SourceFunction,
+    SourceItem, SourceItemKind, SourceParameter, SourceRecord, SourceTypeAlias, SourceUnsupported,
+    SourceVariable,
+};
 pub use types::{SourceType, TypeQualifiers};
