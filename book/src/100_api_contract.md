@@ -24,6 +24,7 @@ These are the main consumer-facing modules:
 | Module | Role | Current expectation |
 | --- | --- | --- |
 | `pac::driver` | parse files and preprocessed source | preferred high-level entry point |
+| `pac::preprocess` | built-in C preprocessor | preferred preprocessing entry point |
 | `pac::parse` | parse string fragments directly | preferred low-level entry point |
 | `pac::ast` | typed syntax tree | preferred data contract |
 | `pac::visit` | recursive traversal hooks | preferred traversal API |
@@ -59,7 +60,8 @@ If you are building on top of `pac`, the safest current rules are:
 
 Today the strongest practical contract is:
 
-- `driver::Config`, `Flavor`, `Parse`, `Error`, and `SyntaxError`
+- `driver::Config`, `Flavor`, `Parse`, `Error`, `SyntaxError`, `parse_builtin`, and `capture_macros`
+- `preprocess::{Processor, IncludeResolver, MacroTable, Lexer, preprocess, tokens_to_text, Target, define_target_macros}`
 - `parse::{constant, expression, declaration, statement, translation_unit, translation_unit_resilient}`
 - the AST model under `ast`
 - the traversal hooks under `visit`
@@ -83,12 +85,11 @@ contract.
 
 The current contract does not promise:
 
-- preprocessing without a system C compiler in the `driver` path
 - semantic name resolution beyond parsing decisions such as typedef handling
 - type checking
 - ABI compatibility guarantees
 - full support for every GCC or Clang extension
-- preservation of raw macro definitions as a first-class PAC output
+- preservation of raw macro definitions beyond what `capture_macros` provides
 
 Those are outside the scope of PAC as a parser library.
 

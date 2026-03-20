@@ -3,6 +3,7 @@
 - [Getting Started](./010_getting_started.md)
 - [Common Workflows](./015_workflows.md)
 - [Driver API](./020_driver.md)
+- [Built-in Preprocessor](./025_preprocessor.md)
 - [Parser API](./030_parser.md)
 - [AST Model](./040_ast.md)
 - [Visitor Pattern](./050_visitor.md)

@@ -142,8 +142,52 @@ match parse_preprocessed(&Config::default(), broken) {
 If the preprocessed source contains line markers, `SyntaxError::get_location()` can reconstruct the
 original file and include stack.
 
+## Built-in preprocessor
+
+PAC includes a built-in C preprocessor that eliminates the need for an external
+`gcc` or `clang` binary. Use `parse_builtin` instead of `parse`:
+
+```rust
+use pac::driver::{parse_builtin, Config};
+use std::path::Path;
+
+let config = Config::with_gcc();
+let include_paths = vec![Path::new("/usr/include")];
+let parsed = parse_builtin(&config, "src/input.c", &include_paths)?;
+# Ok::<(), pac::driver::Error>(())
+```
+
+The built-in preprocessor supports:
+
+- Object-like and function-like macros (with `#`, `##`, `__VA_ARGS__`)
+- Conditional compilation (`#if`, `#ifdef`, `#ifndef`, `#elif`, `#else`, `#endif`)
+- `#include` resolution with configurable search paths
+- Include guard detection and optimization
+- `defined()` operator in `#if` expressions
+- Full C constant expression evaluation (arithmetic, bitwise, logical, ternary)
+- Predefined target macros (architecture, OS, GCC compatibility)
+
+## Macro extraction
+
+To extract all `#define` macros from a C file (equivalent to `gcc -dD -E`):
+
+```rust
+use pac::driver::capture_macros;
+use std::path::Path;
+
+let macros = capture_macros("src/input.c", &[Path::new("/usr/include")])?;
+for (name, value) in &macros {
+    println!("#define {} {}", name, value);
+}
+# Ok::<(), pac::driver::Error>(())
+```
+
+This returns all macros active after preprocessing, including predefined target
+macros and macros from included headers.
+
 ## Practical advice
 
 - Keep `parsed.source` if you plan to report errors later.
 - Use `parse_preprocessed` for deterministic regression tests.
 - Prefer explicit `cpp_options` in tools and CI so parse behavior stays reproducible.
+- Use `parse_builtin` when you need zero-dependency parsing without a C toolchain.
