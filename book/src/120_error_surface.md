@@ -16,7 +16,7 @@ The distinction is important because the driver includes external preprocessing.
 The `parse` module returns:
 
 ```rust
-Result<T, pac::parse::ParseError>
+Result<T, parc::parse::ParseError>
 ```
 
 `ParseError` includes:
@@ -37,7 +37,7 @@ This error means:
 The `driver` module returns:
 
 ```rust
-Result<pac::driver::Parse, pac::driver::Error>
+Result<parc::driver::Parse, parc::driver::Error>
 ```
 
 That error enum has two branches:
@@ -82,8 +82,8 @@ Consumers should not branch on:
 ### Fragment parsing
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 match parse::statement("if (x) {", Flavor::StdC11) {
     Ok(_) => {}
@@ -96,7 +96,7 @@ match parse::statement("if (x) {", Flavor::StdC11) {
 ### File parsing
 
 ```rust
-use pac::driver::{parse, Config, Error};
+use parc::driver::{parse, Config, Error};
 
 match parse(&Config::default(), "broken.c") {
     Ok(_) => {}
@@ -118,8 +118,8 @@ skips to the next synchronization point (`;` at file scope or `}` at brace depth
 parsing.
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 let tu = parse::translation_unit_resilient(source, Flavor::GnuC11);
 // tu.0 contains all successfully parsed declarations

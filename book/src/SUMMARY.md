@@ -1,5 +1,5 @@
 # Summary
-- [Introduction](./pac.md)
+- [Introduction](./parc.md)
 - [Getting Started](./010_getting_started.md)
 - [Common Workflows](./015_workflows.md)
 - [Driver API](./020_driver.md)

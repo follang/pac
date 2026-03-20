@@ -1,6 +1,6 @@
 # Built-in Preprocessor
 
-PAC includes a complete built-in C preprocessor in the `pac::preprocess` module.
+PAC includes a complete built-in C preprocessor in the `parc::preprocess` module.
 This eliminates the runtime dependency on `gcc` or `clang` for preprocessing.
 
 ## Architecture
@@ -21,7 +21,7 @@ The preprocessor is split into focused modules:
 ## Quick start
 
 ```rust
-use pac::preprocess::preprocess;
+use parc::preprocess::preprocess;
 
 let output = preprocess("#define X 42\nint a = X;\n");
 // output.tokens contains the expanded token stream
@@ -67,7 +67,7 @@ The `#if` expression evaluator supports:
 ## Include resolution
 
 ```rust
-use pac::preprocess::{IncludeResolver, Processor};
+use parc::preprocess::{IncludeResolver, Processor};
 
 let mut resolver = IncludeResolver::new();
 resolver.add_system_path("/usr/include");
@@ -92,7 +92,7 @@ Features:
 Target-specific macros are available for common platforms:
 
 ```rust
-use pac::preprocess::{MacroTable, Target, define_target_macros};
+use parc::preprocess::{MacroTable, Target, define_target_macros};
 
 let mut table = MacroTable::new();
 define_target_macros(&mut table, &Target::host());

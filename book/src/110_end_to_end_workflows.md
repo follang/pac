@@ -5,11 +5,11 @@ This chapter ties the public modules together into practical usage patterns.
 ## Workflow 1: Parse A Real C File
 
 ```rust
-use pac::driver::{parse, Config};
+use parc::driver::{parse, Config};
 
 let parsed = parse(&Config::default(), "include/demo.h")?;
 println!("items: {}", parsed.unit.0.len());
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 This is the baseline path when:
@@ -23,11 +23,11 @@ The result gives you both the AST and the exact preprocessed source PAC saw.
 ## Workflow 2: Parse A Preprocessed Snapshot
 
 ```rust
-use pac::driver::{parse_preprocessed, Config};
+use parc::driver::{parse_preprocessed, Config};
 
 let source = std::fs::read_to_string("snapshots/demo.i").unwrap();
 let parsed = parse_preprocessed(&Config::default(), source)?;
-# Ok::<(), pac::driver::SyntaxError>(())
+# Ok::<(), parc::driver::SyntaxError>(())
 ```
 
 Use this when:
@@ -41,12 +41,12 @@ This workflow isolates parser behavior from preprocessor invocation behavior.
 ## Workflow 3: Parse A Fragment In Tests
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 let decl = parse::declaration("typedef unsigned long word_t;", Flavor::StdC11)?;
 let expr = parse::expression("ptr->field + 1", Flavor::GnuC11)?;
-# Ok::<(), pac::parse::ParseError>(())
+# Ok::<(), parc::parse::ParseError>(())
 ```
 
 This is the right workflow for:
@@ -58,9 +58,9 @@ This is the right workflow for:
 ## Workflow 4: Build A Syntax Analyzer
 
 ```rust
-use pac::driver::{parse, Config};
-use pac::visit::{self, Visit};
-use pac::{ast, span};
+use parc::driver::{parse, Config};
+use parc::visit::{self, Visit};
+use parc::{ast, span};
 
 struct ReturnCounter {
     count: usize,
@@ -79,7 +79,7 @@ let parsed = parse(&Config::default(), "src/main.c")?;
 let mut counter = ReturnCounter { count: 0 };
 counter.visit_translation_unit(&parsed.unit);
 println!("return statements: {}", counter.count);
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 This is the normal PAC analyzer pattern:
@@ -92,8 +92,8 @@ This is the normal PAC analyzer pattern:
 ## Workflow 5: Build Diagnostics With Real File Locations
 
 ```rust
-use pac::driver::{parse, Config};
-use pac::loc::get_location_for_offset;
+use parc::driver::{parse, Config};
+use parc::loc::get_location_for_offset;
 
 let parsed = parse(&Config::default(), "src/main.c")?;
 
@@ -101,7 +101,7 @@ for item in &parsed.unit.0 {
     let (loc, _) = get_location_for_offset(&parsed.source, item.span.start);
     println!("top-level item starts at {}:{}", loc.file, loc.line);
 }
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 Use this when your users care about original file locations rather than raw byte offsets in the
@@ -110,17 +110,17 @@ preprocessed stream.
 ## Workflow 6: Debug A New Syntax Form
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
-use pac::print::Printer;
-use pac::visit::Visit;
+use parc::driver::Flavor;
+use parc::parse;
+use parc::print::Printer;
+use parc::visit::Visit;
 
 let expr = parse::expression("({ int x = 1; x + 1; })", Flavor::GnuC11)?;
 
 let mut out = String::new();
 Printer::new(&mut out).visit_expression(&expr.node, &expr.span);
 println!("{}", out);
-# Ok::<(), pac::parse::ParseError>(())
+# Ok::<(), parc::parse::ParseError>(())
 ```
 
 This is the most effective loop when exploring unfamiliar AST shapes.

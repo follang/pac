@@ -9,7 +9,7 @@
 //! - Free of link/binary/ABI-proof concerns
 //!
 //! Downstream consumers (LINC, GERC) should depend only on these types,
-//! never on `pac::ast` directly.
+//! never on `parc::ast` directly.
 
 pub mod diagnostics;
 pub mod items;

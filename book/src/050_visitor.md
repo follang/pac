@@ -7,14 +7,14 @@ The `visit` module provides recursive AST traversal. It exposes:
 
 ## The important rule
 
-When you override a method, call the free function from `pac::visit`, not the trait method on
+When you override a method, call the free function from `parc::visit`, not the trait method on
 `self`. Calling `self.visit_*` from inside the override will recurse back into your override.
 
 ## Count function definitions
 
 ```rust
-use pac::{ast, span, visit};
-use pac::visit::Visit;
+use parc::{ast, span, visit};
+use parc::visit::Visit;
 
 struct FunctionCounter {
     count: usize,
@@ -35,8 +35,8 @@ impl<'ast> Visit<'ast> for FunctionCounter {
 ## Collect identifiers from expressions
 
 ```rust
-use pac::{ast, span, visit};
-use pac::visit::Visit;
+use parc::{ast, span, visit};
+use parc::visit::Visit;
 
 struct IdentifierCollector {
     names: Vec<String>,
@@ -53,8 +53,8 @@ impl<'ast> Visit<'ast> for IdentifierCollector {
 ## Use the visitor
 
 ```rust
-use pac::driver::{parse, Config};
-use pac::visit::Visit;
+use parc::driver::{parse, Config};
+use parc::visit::Visit;
 
 let parsed = parse(&Config::default(), "examples/sample.c")?;
 
@@ -62,7 +62,7 @@ let mut counter = FunctionCounter { count: 0 };
 counter.visit_translation_unit(&parsed.unit);
 
 println!("functions: {}", counter.count);
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 ## When to override which method

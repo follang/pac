@@ -53,7 +53,7 @@ From those markers, `get_location_for_offset` reconstructs:
 ## Basic example
 
 ```rust
-use pac::loc::get_location_for_offset;
+use parc::loc::get_location_for_offset;
 
 let src = "# 1 \"main.c\"\nint value;\n";
 let (loc, includes) = get_location_for_offset(src, 18);
@@ -73,8 +73,8 @@ The common pattern is:
 Example:
 
 ```rust
-use pac::driver::{parse, Config};
-use pac::loc::get_location_for_offset;
+use parc::driver::{parse, Config};
+use parc::loc::get_location_for_offset;
 
 let parsed = parse(&Config::default(), "examples/sample.c")?;
 
@@ -83,7 +83,7 @@ if let Some(first) = parsed.unit.0.first() {
     println!("first item starts in {}:{}", loc.file, loc.line);
     println!("include depth: {}", include_stack.len());
 }
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 ## `SyntaxError::get_location`

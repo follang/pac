@@ -18,7 +18,7 @@ the right API.
 Use this when your source depends on `#include`, `#define`, or compiler predefined macros.
 
 ```rust
-use pac::driver::{parse, Config};
+use parc::driver::{parse, Config};
 
 let config = Config::default();
 let parsed = parse(&config, "src/main.c")?;
@@ -34,7 +34,7 @@ This gives you:
 Use this when another tool already ran preprocessing and you only want PAC to parse.
 
 ```rust
-use pac::driver::{parse_preprocessed, Config};
+use parc::driver::{parse_preprocessed, Config};
 
 let config = Config::default();
 let source = r#"
@@ -55,11 +55,11 @@ This is useful for:
 
 ## Parse a fragment
 
-Use `pac::parse` when you are not dealing with a whole file.
+Use `parc::parse` when you are not dealing with a whole file.
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 let expr = parse::expression("ptr->len + 1", Flavor::GnuC11)?;
 let decl = parse::declaration("unsigned long flags;", Flavor::StdC11)?;
@@ -83,9 +83,9 @@ The normal analyzer flow is:
 Example outline:
 
 ```rust
-use pac::driver::{parse, Config};
-use pac::visit::{self, Visit};
-use pac::{ast, span};
+use parc::driver::{parse, Config};
+use parc::visit::{self, Visit};
+use parc::{ast, span};
 
 struct FunctionCounter {
     count: usize,
@@ -106,7 +106,7 @@ let parsed = parse(&Config::default(), "src/main.c")?;
 let mut counter = FunctionCounter { count: 0 };
 counter.visit_translation_unit(&parsed.unit);
 println!("functions: {}", counter.count);
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 ## Debug the parse tree
@@ -114,16 +114,16 @@ println!("functions: {}", counter.count);
 Use the printer when you need a human-readable structural dump:
 
 ```rust
-use pac::driver::{parse, Config};
-use pac::print::Printer;
-use pac::visit::Visit;
+use parc::driver::{parse, Config};
+use parc::print::Printer;
+use parc::visit::Visit;
 
 let parsed = parse(&Config::default(), "src/main.c")?;
 
 let mut out = String::new();
 Printer::new(&mut out).visit_translation_unit(&parsed.unit);
 println!("{}", out);
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 ## Rule of thumb

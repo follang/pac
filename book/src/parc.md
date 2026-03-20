@@ -1,31 +1,30 @@
-# PAC Reference
+# PARC Reference
 
-PAC is a Rust library for C language frontend processing: preprocessing,
+PARC is a Rust library for C language frontend processing: preprocessing,
 parsing, and source-level semantic extraction. It targets C11 and can
 optionally accept GNU and Clang extensions.
 
-PAC is the frontend stage of the PARC pipeline. It produces a durable
-`SourcePackage` contract suitable for downstream consumption by linker
-and codegen stages.
+PARC produces a durable `SourcePackage` contract suitable for downstream
+consumption by linker and codegen stages.
 
-## What PAC gives you
+## What PARC gives you
 
 - **Preprocessing**: built-in C preprocessor with macro expansion, conditionals, and includes
-- **Parsing**: C11 parser producing a typed AST under `pac::ast`
-- **Extraction**: source-level declaration normalization into `pac::ir`
+- **Parsing**: C11 parser producing a typed AST under `parc::ast`
+- **Extraction**: source-level declaration normalization into `parc::ir`
 - **Source IR**: a serializable `SourcePackage` with functions, records, enums, typedefs, variables, macros, diagnostics, and provenance
-- **Scanning**: end-to-end header scanning via `pac::scan`
-- Source spans under `pac::span`
-- File/line reconstruction under `pac::loc`
-- Recursive visitor API under `pac::visit`
-- Tree-style debug printer under `pac::print`
+- **Scanning**: end-to-end header scanning via `parc::scan`
+- Source spans under `parc::span`
+- File/line reconstruction under `parc::loc`
+- Recursive visitor API under `parc::visit`
+- Tree-style debug printer under `parc::print`
 
 ## Pipeline
 
 ```text
 C source / headers
   -> preprocessor (built-in or gcc/clang)
-  -> PAC parser
+  -> PARC parser
   -> extraction
   -> SourcePackage (frontend contract)
   -> downstream (LINC, GERC)

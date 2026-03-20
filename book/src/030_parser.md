@@ -35,12 +35,12 @@ That makes it well suited for parser tests and editor integrations.
 ## Parse an expression
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 let expr = parse::expression("value + 1 * scale", Flavor::StdC11)?;
 println!("{:#?}", expr);
-# Ok::<(), pac::parse::ParseError>(())
+# Ok::<(), parc::parse::ParseError>(())
 ```
 
 The return type is `Box<Node<Expression>>`, so you get both the expression and its span.
@@ -48,8 +48,8 @@ The return type is `Box<Node<Expression>>`, so you get both the expression and i
 ## Parse a declaration
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 let decl = parse::declaration(
     "static const unsigned long mask = 0xff;",
@@ -57,7 +57,7 @@ let decl = parse::declaration(
 )?;
 
 println!("{:#?}", decl.node);
-# Ok::<(), pac::parse::ParseError>(())
+# Ok::<(), parc::parse::ParseError>(())
 ```
 
 Declarations are useful when you want to inspect:
@@ -70,8 +70,8 @@ Declarations are useful when you want to inspect:
 ## Parse a statement
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 let stmt = parse::statement(
     "for (int i = 0; i < 4; i++) total += i;",
@@ -79,14 +79,14 @@ let stmt = parse::statement(
 )?;
 
 println!("{:#?}", stmt.node);
-# Ok::<(), pac::parse::ParseError>(())
+# Ok::<(), parc::parse::ParseError>(())
 ```
 
 ## Parse a whole translation unit
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 let source = r#"
 typedef int count_t;
@@ -95,7 +95,7 @@ count_t inc(count_t x) { return x + 1; }
 
 let unit = parse::translation_unit(source, Flavor::StdC11)?;
 println!("items: {}", unit.0.len());
-# Ok::<(), pac::parse::ParseError>(())
+# Ok::<(), parc::parse::ParseError>(())
 ```
 
 ## Flavor-sensitive parsing
@@ -103,8 +103,8 @@ println!("items: {}", unit.0.len());
 GNU or Clang syntax only parses when you select a compatible flavor.
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 let gnu_expr = "({ int x = 1; x + 2; })";
 assert!(parse::expression(gnu_expr, Flavor::GnuC11).is_ok());

@@ -4,8 +4,8 @@
 //! Debug printer for abstract syntax tree
 //!
 //! ```no_run
-//! # use pac::print::Printer;
-//! use pac::visit::Visit;
+//! # use parc::print::Printer;
+//! use parc::visit::Visit;
 //! # let unit = panic!();
 //! let s = &mut String::new();
 //! Printer::new(s).visit_translation_unit(unit);

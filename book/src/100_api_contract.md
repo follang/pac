@@ -1,13 +1,13 @@
 # API Contract
 
-This chapter records the intended public consumer surface of `pac`.
+This chapter records the intended public consumer surface of `parc`.
 
 It is not a blanket promise about every future change. It is the current explicit guidance for how
 downstream tools should integrate with the crate without depending on internal parser details.
 
 ## First Principle
 
-`pac` is a C language frontend: preprocessing, parsing, and source-level semantic extraction.
+`parc` is a C language frontend: preprocessing, parsing, and source-level semantic extraction.
 
 The intended downstream pattern is:
 
@@ -16,7 +16,7 @@ The intended downstream pattern is:
 3. consume the `SourcePackage` IR from `ir`
 4. use `visit`, `span`, and `loc` to analyze AST-level details if needed
 
-Downstream consumers (LINC, GERC) should depend on `pac::ir`, not on `pac::ast` directly.
+Downstream consumers (LINC, GERC) should depend on `parc::ir`, not on `parc::ast` directly.
 
 ## Preferred public surface
 
@@ -24,18 +24,18 @@ These are the main consumer-facing modules:
 
 | Module | Role | Current expectation |
 | --- | --- | --- |
-| `pac::ir` | source-level IR (`SourcePackage`) | **preferred data contract** |
-| `pac::extract` | declaration extraction from AST | preferred extraction entry point |
-| `pac::scan` | header scanning (preprocess + extract) | preferred high-level entry point |
-| `pac::intake` | preprocessed source intake | preferred for already-preprocessed source |
-| `pac::driver` | parse files and preprocessed source | preferred parse entry point |
-| `pac::preprocess` | built-in C preprocessor | preferred preprocessing entry point |
-| `pac::parse` | parse string fragments directly | preferred low-level entry point |
-| `pac::ast` | typed syntax tree | internal data model |
-| `pac::visit` | recursive traversal hooks | preferred traversal API |
-| `pac::span` | byte-range metadata | preferred location primitive |
-| `pac::loc` | map offsets back to files/lines | preferred diagnostics helper |
-| `pac::print` | AST debug dumping | preferred inspection helper |
+| `parc::ir` | source-level IR (`SourcePackage`) | **preferred data contract** |
+| `parc::extract` | declaration extraction from AST | preferred extraction entry point |
+| `parc::scan` | header scanning (preprocess + extract) | preferred high-level entry point |
+| `parc::intake` | preprocessed source intake | preferred for already-preprocessed source |
+| `parc::driver` | parse files and preprocessed source | preferred parse entry point |
+| `parc::preprocess` | built-in C preprocessor | preferred preprocessing entry point |
+| `parc::parse` | parse string fragments directly | preferred low-level entry point |
+| `parc::ast` | typed syntax tree | internal data model |
+| `parc::visit` | recursive traversal hooks | preferred traversal API |
+| `parc::span` | byte-range metadata | preferred location primitive |
+| `parc::loc` | map offsets back to files/lines | preferred diagnostics helper |
+| `parc::print` | AST debug dumping | preferred inspection helper |
 
 ## Internal modules are not the contract
 
@@ -51,7 +51,7 @@ implementation details rather than the intended library boundary.
 
 ## Normative consumer rules
 
-If you are building on top of `pac`, the safest current rules are:
+If you are building on top of `parc`, the safest current rules are:
 
 1. use `driver` when preprocessing matters
 2. use `parse::*` for fragment parsing or already-controlled text inputs

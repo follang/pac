@@ -1,24 +1,24 @@
 # Migration From bic
 
 This chapter documents how to migrate downstream consumers from `bic`'s frontend extraction
-to `pac`'s `SourcePackage` contract.
+to `parc`'s `SourcePackage` contract.
 
 ## Why migrate
 
-`pac` now owns source-level declaration extraction. `bic`'s `extract.rs` was the legacy location
+`parc` now owns source-level declaration extraction. `bic`'s `extract.rs` was the legacy location
 for this logic. The canonical path is now:
 
 ```text
-C headers  ->  pac::scan / pac::extract  ->  SourcePackage  ->  downstream
+C headers  ->  parc::scan / parc::extract  ->  SourcePackage  ->  downstream
 ```
 
-`bic` should consume `pac::ir::SourcePackage` instead of owning its own extraction.
+`bic` should consume `parc::ir::SourcePackage` instead of owning its own extraction.
 
 ## Type mapping
 
-| bic type | pac type | Notes |
+| bic type | parc type | Notes |
 | --- | --- | --- |
-| `BindingPackage` | `SourcePackage` | pac has no `layouts`, `link`, or `bic_version` |
+| `BindingPackage` | `SourcePackage` | parc has no `layouts`, `link`, or `bic_version` |
 | `BindingItem` | `SourceItem` | Same variant set |
 | `BindingType` | `SourceType` | Pointer model differs (see below) |
 | `FunctionBinding` | `SourceFunction` | Identical structure |
@@ -29,12 +29,12 @@ C headers  ->  pac::scan / pac::extract  ->  SourcePackage  ->  downstream
 | `TypeAliasBinding` | `SourceTypeAlias` | No `canonical_resolution` |
 | `VariableBinding` | `SourceVariable` | Identical structure |
 | `UnsupportedItem` | `SourceUnsupported` | Identical structure |
-| `CallingConvention` | `CallingConvention` | pac version includes `Unknown(String)` |
+| `CallingConvention` | `CallingConvention` | parc version includes `Unknown(String)` |
 | `TypeQualifiers` | `TypeQualifiers` | Identical structure |
 | `BindingTarget` | `SourceTarget` | Identical structure |
 | `BindingInputs` | `SourceInputs` | Identical structure |
 | `BindingDefine` | `SourceDefine` | Identical structure |
-| `MacroBinding` | `SourceMacro` | pac drops `function_like` and `category` |
+| `MacroBinding` | `SourceMacro` | parc drops `function_like` and `category` |
 | `DeclarationProvenance` | `DeclarationProvenance` | Identical structure |
 | `MacroProvenance` | `MacroProvenance` | Identical structure |
 
@@ -50,7 +50,7 @@ Pointer {
 }
 ```
 
-pac:
+parc:
 
 ```rust
 Pointer {
@@ -59,17 +59,17 @@ Pointer {
 }
 ```
 
-In pac, `qualifiers.is_const` on a `Pointer` indicates that the pointee is const-qualified.
+In parc, `qualifiers.is_const` on a `Pointer` indicates that the pointee is const-qualified.
 Use `SourceType::const_ptr(inner)` and `SourceType::ptr(inner)` as constructors.
 
-## Missing fields in pac
+## Missing fields in parc
 
-These bic fields are intentionally absent from pac because they belong to the link/ABI layer:
+These bic fields are intentionally absent from parc because they belong to the link/ABI layer:
 
 - `FieldBinding.layout` (field offset) — use LINC probing
 - `RecordBinding.representation` — use LINC probing
 - `RecordBinding.abi_confidence` — use LINC validation
-- `TypeAliasBinding.canonical_resolution` — pac preserves `TypedefRef` chains
+- `TypeAliasBinding.canonical_resolution` — parc preserves `TypedefRef` chains
 - `BindingPackage.layouts` — use LINC probing
 - `BindingPackage.link` — use LINC link surface
 - `BindingPackage.effective_macro_environment` — use LINC macro analysis
@@ -93,8 +93,8 @@ pkg.items = items;
 After:
 
 ```rust
-use pac::extract;
-use pac::ir::SourcePackage;
+use parc::extract;
+use parc::ir::SourcePackage;
 
 let pkg = extract::extract_from_translation_unit(&unit, Some("header.h".into()));
 ```
@@ -102,7 +102,7 @@ let pkg = extract::extract_from_translation_unit(&unit, Some("header.h".into()))
 Or for end-to-end scanning:
 
 ```rust
-use pac::scan::{ScanConfig, scan_headers};
+use parc::scan::{ScanConfig, scan_headers};
 
 let config = ScanConfig::new()
     .entry_header("header.h")
@@ -124,7 +124,7 @@ Replace `const_pointee` checks:
 // Before (bic)
 if let BindingType::Pointer { const_pointee: true, .. } = ty { ... }
 
-// After (pac)
+// After (parc)
 if let SourceType::Pointer { qualifiers, .. } = ty {
     if qualifiers.is_const { ... }
 }
@@ -138,7 +138,7 @@ Any code that reads `FieldBinding.layout`, `RecordBinding.representation`, or
 ### Step 5: Use builder for programmatic construction
 
 ```rust
-use pac::ir::{SourcePackageBuilder, SourceItem, SourceFunction, ...};
+use parc::ir::{SourcePackageBuilder, SourceItem, SourceFunction, ...};
 
 let pkg = SourcePackageBuilder::new()
     .source_path("api.h")
@@ -151,12 +151,12 @@ let pkg = SourcePackageBuilder::new()
 
 Key public APIs for downstream consumers:
 
-- `pac::extract::extract_from_source(src)` — parse and extract
-- `pac::extract::extract_from_translation_unit(unit, path)` — extract from AST
-- `pac::extract::parse_and_extract(src, flavor)` — with flavor control
-- `pac::extract::parse_and_extract_resilient(src, flavor)` — with error recovery
-- `pac::scan::scan_headers(config)` — end-to-end header scanning
-- `pac::ir::SourcePackage` — the contract type
-- `pac::ir::SourcePackageBuilder` — programmatic construction
+- `parc::extract::extract_from_source(src)` — parse and extract
+- `parc::extract::extract_from_translation_unit(unit, path)` — extract from AST
+- `parc::extract::parse_and_extract(src, flavor)` — with flavor control
+- `parc::extract::parse_and_extract_resilient(src, flavor)` — with error recovery
+- `parc::scan::scan_headers(config)` — end-to-end header scanning
+- `parc::ir::SourcePackage` — the contract type
+- `parc::ir::SourcePackageBuilder` — programmatic construction
 - `SourcePackage::retain_items(pred)` — filter items
 - `SourcePackage::merge(other)` — combine packages

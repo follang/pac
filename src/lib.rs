@@ -14,7 +14,7 @@
 //! # Quick start
 //!
 //! ```
-//! use pac::driver::{Config, parse};
+//! use parc::driver::{Config, parse};
 //!
 //! fn main() {
 //!     let config = Config::default();

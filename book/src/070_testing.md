@@ -131,7 +131,7 @@ navigation, serialization, filtering, merging, and programmatic construction.
 
 ## Differential tests
 
-`src/tests/differential.rs` documents the known differences between pac extraction and
+`src/tests/differential.rs` documents the known differences between parc extraction and
 bic extraction, ensuring behavioral equivalence on standard declarations and explicitly
 documenting intentional divergences (pointer model, no ABI fields, typedef chain
 preservation).

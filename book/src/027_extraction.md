@@ -1,12 +1,12 @@
 # Extraction
 
-The `pac::extract` module converts a parsed C AST into the normalized
+The `parc::extract` module converts a parsed C AST into the normalized
 `SourcePackage` IR. It handles all declaration families.
 
 ## Quick Start
 
 ```rust
-use pac::extract;
+use parc::extract;
 
 let source = r#"
     typedef unsigned long size_t;
@@ -27,7 +27,7 @@ assert_eq!(pkg.type_alias_count(), 1);
 Parse and extract in one step using GNU C11 flavor:
 
 ```rust
-let pkg = pac::extract::extract_from_source("int foo(void);").unwrap();
+let pkg = parc::extract::extract_from_source("int foo(void);").unwrap();
 ```
 
 ### `parse_and_extract`
@@ -35,9 +35,9 @@ let pkg = pac::extract::extract_from_source("int foo(void);").unwrap();
 Parse and extract with a specific flavor:
 
 ```rust
-let pkg = pac::extract::parse_and_extract(
+let pkg = parc::extract::parse_and_extract(
     "int foo(void);",
-    pac::driver::Flavor::StdC11,
+    parc::driver::Flavor::StdC11,
 ).unwrap();
 ```
 
@@ -46,8 +46,8 @@ let pkg = pac::extract::parse_and_extract(
 Extract from an already-parsed AST:
 
 ```rust
-let unit = pac::parse::translation_unit("int foo(void);", pac::driver::Flavor::StdC11).unwrap();
-let pkg = pac::extract::extract_from_translation_unit(&unit, Some("test.h".into()));
+let unit = parc::parse::translation_unit("int foo(void);", parc::driver::Flavor::StdC11).unwrap();
+let pkg = parc::extract::extract_from_translation_unit(&unit, Some("test.h".into()));
 ```
 
 ### `parse_and_extract_resilient`
@@ -55,9 +55,9 @@ let pkg = pac::extract::extract_from_translation_unit(&unit, Some("test.h".into(
 Parse with error recovery and extract what's possible:
 
 ```rust
-let pkg = pac::extract::parse_and_extract_resilient(
+let pkg = parc::extract::parse_and_extract_resilient(
     "int valid;\n@@@bad@@@;\nint also_valid;",
-    pac::driver::Flavor::StdC11,
+    parc::driver::Flavor::StdC11,
 );
 ```
 
@@ -66,7 +66,7 @@ let pkg = pac::extract::parse_and_extract_resilient(
 Read a file from disk and extract:
 
 ```rust
-let pkg = pac::extract::extract_file("path/to/header.h", pac::driver::Flavor::GnuC11).unwrap();
+let pkg = parc::extract::extract_file("path/to/header.h", parc::driver::Flavor::GnuC11).unwrap();
 assert!(pkg.source_path.is_some());
 ```
 

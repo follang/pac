@@ -1,6 +1,6 @@
 # Source IR
 
-The `pac::ir` module defines the durable intermediate representation produced
+The `parc::ir` module defines the durable intermediate representation produced
 by the PARC frontend. It is the primary contract between the parser/extractor
 and downstream consumers (LINC, GERC).
 
@@ -8,7 +8,7 @@ and downstream consumers (LINC, GERC).
 
 - **Smaller than the AST**: only normalized declarations, not the full syntax tree
 - **Serializable**: all types derive `serde::Serialize` and `serde::Deserialize`
-- **Parser-agnostic**: downstream consumers should depend on `pac::ir`, not `pac::ast`
+- **Parser-agnostic**: downstream consumers should depend on `parc::ir`, not `parc::ast`
 - **No link/binary concerns**: no ABI probing, no library paths, no symbol validation
 
 ## Key Types
@@ -18,7 +18,7 @@ and downstream consumers (LINC, GERC).
 The top-level container:
 
 ```rust
-use pac::ir::SourcePackage;
+use parc::ir::SourcePackage;
 
 let pkg = SourcePackage::new();
 assert!(pkg.is_empty());
@@ -68,7 +68,7 @@ Frontend diagnostic with kind, severity, message, optional location, and optiona
 All IR types support JSON roundtrip:
 
 ```rust
-use pac::ir::SourcePackage;
+use parc::ir::SourcePackage;
 
 let pkg = SourcePackage::new();
 let json = serde_json::to_string_pretty(&pkg).unwrap();

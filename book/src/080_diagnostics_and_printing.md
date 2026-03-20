@@ -10,8 +10,8 @@ PAC includes two pieces that are especially useful when building tools on top of
 The `parse` module returns `ParseError`:
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 match parse::expression("a +", Flavor::StdC11) {
     Ok(_) => {}
@@ -35,7 +35,7 @@ This is enough for:
 The driver adds preprocessor context on top:
 
 ```rust
-use pac::driver::{parse, Config, Error};
+use parc::driver::{parse, Config, Error};
 
 match parse(&Config::default(), "broken.c") {
     Ok(_) => {}
@@ -63,16 +63,16 @@ human-readable error message.
 `print::Printer` is a visitor that renders the tree as an indented text dump.
 
 ```rust
-use pac::driver::{parse, Config};
-use pac::print::Printer;
-use pac::visit::Visit;
+use parc::driver::{parse, Config};
+use parc::print::Printer;
+use parc::visit::Visit;
 
 let parsed = parse(&Config::default(), "examples/sample.c")?;
 
 let mut out = String::new();
 Printer::new(&mut out).visit_translation_unit(&parsed.unit);
 println!("{}", out);
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 The printer is ideal when:

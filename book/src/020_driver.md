@@ -32,14 +32,14 @@ The return value matters:
 ## Basic file parsing
 
 ```rust
-use pac::driver::{parse, Config};
+use parc::driver::{parse, Config};
 
 let config = Config::default();
 let parsed = parse(&config, "examples/demo.c")?;
 
 println!("preprocessed bytes: {}", parsed.source.len());
 println!("top-level nodes: {}", parsed.unit.0.len());
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 ## Configuring the preprocessor
@@ -47,7 +47,7 @@ println!("top-level nodes: {}", parsed.unit.0.len());
 You can override both the preprocessor executable and its arguments.
 
 ```rust
-use pac::driver::{parse, Config, Flavor};
+use parc::driver::{parse, Config, Flavor};
 
 let config = Config {
     cpp_command: "gcc".into(),
@@ -61,7 +61,7 @@ let config = Config {
 };
 
 let parsed = parse(&config, "src/input.c")?;
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 This is the place to inject:
@@ -75,7 +75,7 @@ This is the place to inject:
 The convenience constructors also select parser flavor:
 
 ```rust
-use pac::driver::Config;
+use parc::driver::Config;
 
 let gcc = Config::with_gcc();     // gcc -E, GNU flavor
 let clang = Config::with_clang(); // clang -E, Clang flavor
@@ -89,7 +89,7 @@ preprocessor.
 If you already have `.i`-style content, skip `parse` and call `parse_preprocessed`.
 
 ```rust
-use pac::driver::{parse_preprocessed, Config};
+use parc::driver::{parse_preprocessed, Config};
 
 let source = r#"
 # 1 "sample.i"
@@ -100,7 +100,7 @@ count_t next(count_t x) { return x + 1; }
 
 let parsed = parse_preprocessed(&Config::default(), source)?;
 println!("{}", parsed.unit.0.len());
-# Ok::<(), pac::driver::SyntaxError>(())
+# Ok::<(), parc::driver::SyntaxError>(())
 ```
 
 ## Error model
@@ -108,7 +108,7 @@ println!("{}", parsed.unit.0.len());
 `driver::parse` returns:
 
 ```rust
-Result<Parse, pac::driver::Error>
+Result<Parse, parc::driver::Error>
 ```
 
 The error variants are:
@@ -127,7 +127,7 @@ The error variants are:
 Example:
 
 ```rust
-use pac::driver::{parse_preprocessed, Config};
+use parc::driver::{parse_preprocessed, Config};
 
 let broken = "int main( { return 0; }".to_string();
 match parse_preprocessed(&Config::default(), broken) {
@@ -148,13 +148,13 @@ PAC includes a built-in C preprocessor that eliminates the need for an external
 `gcc` or `clang` binary. Use `parse_builtin` instead of `parse`:
 
 ```rust
-use pac::driver::{parse_builtin, Config};
+use parc::driver::{parse_builtin, Config};
 use std::path::Path;
 
 let config = Config::with_gcc();
 let include_paths = vec![Path::new("/usr/include")];
 let parsed = parse_builtin(&config, "src/input.c", &include_paths)?;
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 The built-in preprocessor supports:
@@ -172,14 +172,14 @@ The built-in preprocessor supports:
 To extract all `#define` macros from a C file (equivalent to `gcc -dD -E`):
 
 ```rust
-use pac::driver::capture_macros;
+use parc::driver::capture_macros;
 use std::path::Path;
 
 let macros = capture_macros("src/input.c", &[Path::new("/usr/include")])?;
 for (name, value) in &macros {
     println!("#define {} {}", name, value);
 }
-# Ok::<(), pac::driver::Error>(())
+# Ok::<(), parc::driver::Error>(())
 ```
 
 This returns all macros active after preprocessing, including predefined target

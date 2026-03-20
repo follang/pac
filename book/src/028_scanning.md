@@ -1,12 +1,12 @@
 # Header Scanning
 
-The `pac::scan` module provides end-to-end header scanning: preprocess
+The `parc::scan` module provides end-to-end header scanning: preprocess
 C headers and extract a `SourcePackage` in one step.
 
 ## Quick Start
 
 ```rust
-use pac::scan::{ScanConfig, scan_headers};
+use parc::scan::{ScanConfig, scan_headers};
 
 let config = ScanConfig::new()
     .entry_header("api.h")
@@ -41,7 +41,7 @@ compiler to be installed. Supports all system headers.
 
 ### Built-in
 
-Uses `pac::preprocess` for self-contained headers that don't need
+Uses `parc::preprocess` for self-contained headers that don't need
 system includes. No external compiler required.
 
 ## ScanResult
@@ -54,14 +54,14 @@ The scan produces:
 ## Intake
 
 For already-preprocessed source (e.g., output of `gcc -E`), use
-`pac::intake::PreprocessedInput`:
+`parc::intake::PreprocessedInput`:
 
 ```rust
-use pac::intake::PreprocessedInput;
+use parc::intake::PreprocessedInput;
 
 let input = PreprocessedInput::from_string("int foo(void);")
     .with_path("output.i")
-    .with_flavor(pac::driver::Flavor::GnuC11);
+    .with_flavor(parc::driver::Flavor::GnuC11);
 
 let pkg = input.extract();
 ```

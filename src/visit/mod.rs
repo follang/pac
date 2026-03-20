@@ -1,7 +1,7 @@
 //! Recursive abstract syntax tree traversal
 //!
 //! ```rust
-//! # use pac::{ast, span, visit};
+//! # use parc::{ast, span, visit};
 //! struct ExprCount(usize);
 //!
 //! impl<'ast> visit::Visit<'ast> for ExprCount {

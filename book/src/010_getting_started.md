@@ -4,17 +4,17 @@
 
 ```toml
 [dependencies]
-pac = { path = "../pac" }
+parc = { path = "../pac" }
 ```
 
 ## Pick the right API first
 
-Use `pac::driver` when you have a file on disk and want PAC to run a system preprocessor first.
+Use `parc::driver` when you have a file on disk and want PAC to run a system preprocessor first.
 
 ```rust
-use pac::driver::{parse, Config};
+use parc::driver::{parse, Config};
 
-fn main() -> Result<(), pac::driver::Error> {
+fn main() -> Result<(), parc::driver::Error> {
     let config = Config::default();
     let parsed = parse(&config, "examples/sample.c")?;
 
@@ -24,11 +24,11 @@ fn main() -> Result<(), pac::driver::Error> {
 }
 ```
 
-Use `pac::parse` when you already have source text in memory and want to parse a fragment directly.
+Use `parc::parse` when you already have source text in memory and want to parse a fragment directly.
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 fn main() {
     let expr = parse::expression("a + b * 2", Flavor::StdC11).unwrap();
@@ -54,7 +54,7 @@ For file-based parsing, `Config::default()` selects:
 You can also select explicitly:
 
 ```rust
-use pac::driver::Config;
+use parc::driver::Config;
 
 let gnu = Config::with_gcc();
 let clang = Config::with_clang();
@@ -65,9 +65,9 @@ let clang = Config::with_clang();
 This example parses a translation unit and counts top-level entries:
 
 ```rust
-use pac::driver::{parse, Config};
+use parc::driver::{parse, Config};
 
-fn main() -> Result<(), pac::driver::Error> {
+fn main() -> Result<(), parc::driver::Error> {
     let parsed = parse(&Config::default(), "examples/header.h")?;
 
     for (i, item) in parsed.unit.0.iter().enumerate() {
@@ -83,8 +83,8 @@ fn main() -> Result<(), pac::driver::Error> {
 If you only need one declaration or statement, the direct parser API is faster to wire in:
 
 ```rust
-use pac::driver::Flavor;
-use pac::parse;
+use parc::driver::Flavor;
+use parc::parse;
 
 fn main() {
     let decl = parse::declaration("static const int answer = 42;", Flavor::StdC11).unwrap();

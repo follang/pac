@@ -1,13 +1,12 @@
-# PAC (parser c)
+# PARC
 
-[![Documentation](https://docs.rs/pac/badge.svg)](https://docs.rs/pac)
+[![Documentation](https://docs.rs/parc/badge.svg)](https://docs.rs/parc)
 
-PAC (parser c) is a lightweight parser of the C language for Rust users. Almost full support for the C11 revision of the language.
-Several GCC and Clang extensions are also supported as an option.
+PARC is a C language frontend: preprocessing, parsing, and source-level semantic extraction.
+Full support for C11 with GNU and Clang extensions.
 
 ```rust
-extern crate pac;
-use pac::driver::{Config, parse}; 
+use parc::driver::{Config, parse};
 
 fn main() {
     let config = Config::default();
@@ -17,7 +16,7 @@ fn main() {
 
 # Bugs
 
-Just open an issue, bug reports and patches are most welcome. 
+Just open an issue, bug reports and patches are most welcome.
 
 ## License
 
