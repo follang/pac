@@ -63,6 +63,7 @@ pub enum TypeSpecifier {
     TypeOf(Node<TypeOf>),
     TS18661Float(TS18661FloatType),
     Int128,
+    Float128,
     BitInt(Box<Node<Expression>>),
 }
 
