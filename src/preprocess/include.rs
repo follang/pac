@@ -19,6 +19,8 @@ pub struct IncludeResolver {
     pragma_once_files: HashSet<PathBuf>,
     /// File content cache: avoids re-reading files from disk.
     file_cache: HashMap<PathBuf, String>,
+    /// Built-in headers (e.g. stdint.h, stddef.h) keyed by header name.
+    builtin_headers: HashMap<String, String>,
     /// Maximum include depth to prevent infinite recursion.
     max_depth: usize,
     /// Current include depth.
@@ -47,10 +49,17 @@ impl IncludeResolver {
             guards: HashSet::new(),
             pragma_once_files: HashSet::new(),
             file_cache: HashMap::new(),
+            builtin_headers: HashMap::new(),
             max_depth: 200,
             depth: 0,
             current_dir: None,
         }
+    }
+
+    /// Register built-in headers (e.g. stdint.h, stddef.h).
+    /// These are used as fallback when the header isn't found on disk.
+    pub fn register_builtin_headers(&mut self, headers: HashMap<String, String>) {
+        self.builtin_headers.extend(headers);
     }
 
     /// Add a local include search path (for `"..."` includes).
@@ -182,9 +191,31 @@ impl IncludeResolver {
             return Some(Vec::new());
         }
 
-        let resolved = self.resolve(path, system)?;
+        // Try disk resolution first
+        if let Some(resolved) = self.resolve(path, system) {
+            if let Some(tokens) = self.handle_include_file(&resolved, path, macros, errors, warnings) {
+                return Some(tokens);
+            }
+        }
 
-        let canonical = std::fs::canonicalize(&resolved).ok()?;
+        // Fall back to built-in headers
+        if let Some(content) = self.builtin_headers.get(path).cloned() {
+            return Some(self.handle_include_source(&content, macros, errors, warnings));
+        }
+
+        // Not found anywhere
+        None
+    }
+
+    fn handle_include_file(
+        &mut self,
+        resolved: &Path,
+        orig_path: &str,
+        macros: &mut MacroTable,
+        errors: &mut Vec<String>,
+        warnings: &mut Vec<String>,
+    ) -> Option<Vec<Token>> {
+        let canonical = std::fs::canonicalize(resolved).ok()?;
 
         // Check #pragma once
         if self.pragma_once_files.contains(&canonical) {
@@ -207,7 +238,7 @@ impl IncludeResolver {
                     s
                 }
                 Err(e) => {
-                    errors.push(format!("cannot read {:?}: {}", path, e));
+                    errors.push(format!("cannot read {:?}: {}", orig_path, e));
                     return Some(Vec::new());
                 }
             }
@@ -219,8 +250,6 @@ impl IncludeResolver {
 
         let tokens = Lexer::tokenize(&source);
 
-        // Process the included file's tokens through a temporary processor
-        // that shares the macro table
         let mut sub_proc = Processor::with_macros(std::mem::take(macros));
         let self_ptr = self as *mut IncludeResolver;
         let output = sub_proc.process_with_includes(&tokens, &mut |p, s, m| {
@@ -228,7 +257,6 @@ impl IncludeResolver {
             resolver.handle_include(p, s, m, errors, warnings)
         });
 
-        // Transfer macros back
         *macros = std::mem::take(sub_proc.macros_mut());
 
         errors.extend(output.errors);
@@ -250,6 +278,35 @@ impl IncludeResolver {
         }
 
         Some(output.tokens)
+    }
+
+    /// Process built-in header source text (no file on disk).
+    fn handle_include_source(
+        &mut self,
+        source: &str,
+        macros: &mut MacroTable,
+        errors: &mut Vec<String>,
+        warnings: &mut Vec<String>,
+    ) -> Vec<Token> {
+        self.depth += 1;
+
+        let tokens = Lexer::tokenize(source);
+
+        let mut sub_proc = Processor::with_macros(std::mem::take(macros));
+        let self_ptr = self as *mut IncludeResolver;
+        let output = sub_proc.process_with_includes(&tokens, &mut |p, s, m| {
+            let resolver = unsafe { &mut *self_ptr };
+            resolver.handle_include(p, s, m, errors, warnings)
+        });
+
+        *macros = std::mem::take(sub_proc.macros_mut());
+
+        errors.extend(output.errors);
+        warnings.extend(output.warnings);
+
+        self.depth -= 1;
+
+        output.tokens
     }
 
     /// Detect include guard name for a file.

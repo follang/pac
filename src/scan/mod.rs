@@ -156,8 +156,8 @@ fn preprocess_external(config: &ScanConfig) -> Result<(String, String), ScanErro
 
 fn preprocess_builtin(config: &ScanConfig) -> Result<(String, String), ScanError> {
     use crate::preprocess::{
-        define_target_macros, IncludeResolver, MacroDef, MacroTable, Processor, Target, Token,
-        TokenKind,
+        builtin_headers, define_target_macros, IncludeResolver, MacroDef, MacroTable, Processor,
+        Target, Token, TokenKind,
     };
 
     // Initialize with target macros for the host platform
@@ -167,6 +167,9 @@ fn preprocess_builtin(config: &ScanConfig) -> Result<(String, String), ScanError
 
     let mut processor = Processor::with_macros(table);
     let mut resolver = IncludeResolver::new();
+
+    // Register built-in standard headers (stdint.h, stddef.h, stdbool.h)
+    resolver.register_builtin_headers(builtin_headers());
 
     // Add user include dirs (searchable for both "..." and <...> includes)
     for dir in &config.include_dirs {
@@ -559,5 +562,131 @@ void destroy(handle_t h);
             Some(v) => std::env::set_var("CPATH", v),
             None => std::env::remove_var("CPATH"),
         }
+    }
+
+    #[test]
+    fn scan_builtin_stdint_h() {
+        let dir = std::env::temp_dir().join("pac_test_stdint");
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(
+            dir.join("api.h"),
+            r#"
+#include <stdint.h>
+#include <stddef.h>
+int32_t get_id(void);
+uint64_t get_timestamp(void);
+void set_data(const uint8_t *buf, size_t len);
+intptr_t get_handle(void);
+"#,
+        )
+        .unwrap();
+
+        let config = ScanConfig::new()
+            .entry_header(dir.join("api.h"))
+            .with_builtin_preprocessor()
+            .with_resolve_typedefs();
+
+        let result = scan_headers(&config).expect("scan with stdint.h should succeed");
+        let pkg = &result.package;
+
+        // Should find all four functions
+        assert!(pkg.find_function("get_id").is_some(), "missing get_id");
+        assert!(
+            pkg.find_function("get_timestamp").is_some(),
+            "missing get_timestamp"
+        );
+        assert!(pkg.find_function("set_data").is_some(), "missing set_data");
+        assert!(
+            pkg.find_function("get_handle").is_some(),
+            "missing get_handle"
+        );
+
+        // With resolve_typedefs, int32_t -> signed int, uint64_t -> unsigned long (on 64-bit)
+        let get_id = pkg.find_function("get_id").unwrap();
+        assert_eq!(get_id.return_type, crate::ir::SourceType::Int);
+
+        // stdint types should be present as type aliases
+        assert!(pkg.find_type_alias("int32_t").is_some());
+        assert!(pkg.find_type_alias("uint64_t").is_some());
+        assert!(pkg.find_type_alias("uint8_t").is_some());
+        assert!(pkg.find_type_alias("intptr_t").is_some());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn scan_builtin_stddef_h() {
+        let dir = std::env::temp_dir().join("pac_test_stddef");
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(
+            dir.join("api.h"),
+            "#include <stddef.h>\nvoid *alloc(size_t n);\nptrdiff_t diff(const void *a, const void *b);\n",
+        )
+        .unwrap();
+
+        let config = ScanConfig::new()
+            .entry_header(dir.join("api.h"))
+            .with_builtin_preprocessor();
+
+        let result = scan_headers(&config).expect("scan with stddef.h should succeed");
+        let pkg = &result.package;
+
+        assert!(pkg.find_function("alloc").is_some(), "missing alloc");
+        assert!(pkg.find_function("diff").is_some(), "missing diff");
+        assert!(pkg.find_type_alias("size_t").is_some());
+        assert!(pkg.find_type_alias("ptrdiff_t").is_some());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn scan_builtin_vs_gcc_stdint_types() {
+        // Compare our builtin stdint.h extraction with gcc -E extraction
+        // for the same source. Both should produce equivalent resolved types.
+        let dir = std::env::temp_dir().join("pac_test_stdint_cmp");
+        let _ = std::fs::create_dir_all(&dir);
+        let header = r#"
+#include <stdint.h>
+int32_t get_id(void);
+uint8_t get_byte(void);
+int64_t get_big(void);
+"#;
+        std::fs::write(dir.join("api.h"), header).unwrap();
+
+        // Builtin preprocessor with typedef resolution
+        let builtin_config = ScanConfig::new()
+            .entry_header(dir.join("api.h"))
+            .with_builtin_preprocessor()
+            .with_resolve_typedefs();
+        let builtin_result = scan_headers(&builtin_config).expect("builtin scan");
+
+        let builtin_pkg = &builtin_result.package;
+        let get_id = builtin_pkg.find_function("get_id").unwrap();
+        let get_byte = builtin_pkg.find_function("get_byte").unwrap();
+        let get_big = builtin_pkg.find_function("get_big").unwrap();
+
+        // After resolution: int32_t -> Int, uint8_t -> UChar, int64_t -> Long (on 64-bit)
+        assert_eq!(get_id.return_type, crate::ir::SourceType::Int);
+        assert_eq!(get_byte.return_type, crate::ir::SourceType::UChar);
+        assert_eq!(get_big.return_type, crate::ir::SourceType::Long);
+
+        // External preprocessor (gcc) with typedef resolution
+        let gcc_config = ScanConfig::new()
+            .entry_header(dir.join("api.h"))
+            .with_resolve_typedefs();
+
+        if let Ok(gcc_result) = scan_headers(&gcc_config) {
+            let gcc_pkg = &gcc_result.package;
+            let gcc_id = gcc_pkg.find_function("get_id").unwrap();
+            let gcc_byte = gcc_pkg.find_function("get_byte").unwrap();
+            let gcc_big = gcc_pkg.find_function("get_big").unwrap();
+
+            // Both should resolve to the same primitive types
+            assert_eq!(get_id.return_type, gcc_id.return_type, "int32_t mismatch");
+            assert_eq!(get_byte.return_type, gcc_byte.return_type, "uint8_t mismatch");
+            assert_eq!(get_big.return_type, gcc_big.return_type, "int64_t mismatch");
+        }
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

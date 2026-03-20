@@ -267,6 +267,13 @@ impl Processor {
                     continue;
                 }
                 TokenKind::Newline => {
+                    // Emit newline as a newline character so downstream text
+                    // preserves line boundaries (needed for parsing multi-line output).
+                    output.tokens.push(Token {
+                        kind: TokenKind::Whitespace,
+                        text: "\n".into(),
+                        offset: tokens[i].offset,
+                    });
                     i += 1;
                     continue;
                 }

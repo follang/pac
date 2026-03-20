@@ -11,6 +11,7 @@ mod expr;
 mod processor;
 mod include;
 mod predefined;
+mod builtins;
 
 pub use self::token::{Token, TokenKind};
 pub use self::lexer::Lexer;
@@ -20,3 +21,4 @@ pub use self::expr::eval_condition;
 pub use self::processor::{Processor, ProcessorOutput, IncludeRequest, preprocess, tokens_to_text};
 pub use self::include::{IncludeResolver, PreprocessResult};
 pub use self::predefined::{Target, TargetArch, TargetOs, define_target_macros};
+pub use self::builtins::builtin_headers;
