@@ -1,4 +1,5 @@
 mod contract;
+mod differential;
 mod external_tools;
 mod extraction_fixtures;
 mod full_apps;
