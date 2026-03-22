@@ -56,6 +56,13 @@ Before releasing a `SourcePackage` shape change:
 
 - `make build` passes
 - `make test` passes
+- the canonical hardening surfaces are still green
+  - vendored musl `stdint`
+  - vendored zlib
+  - vendored libpng conservative-failure path
+  - OpenSSL public wrapper extraction
+  - combined Linux event-loop wrapper extraction
+- deterministic repeated extraction still holds on the canonical large surfaces
 - the book still teaches `parc` as the source-meaning crate
 - unsupported or partial source behavior is still documented honestly
 

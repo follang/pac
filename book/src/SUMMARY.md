@@ -26,4 +26,5 @@
   - [Hardening Matrix](./175_hardening_matrix.md)
   - [Parser Boundaries](./190_parser_boundaries.md)
   - [Release Checklist](./200_release_checklist.md)
+  - [Readiness Scorecard](./205_readiness_scorecard.md)
 - [Migration From bic](./210_migration_from_bic.md)
