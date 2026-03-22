@@ -13,11 +13,27 @@ Read the workflows in this order:
 
 | Situation | API |
 | --- | --- |
+| Turn headers into `SourcePackage` | `scan::scan_headers` |
 | Parse a `.c` or `.h` file with includes and macros | `driver::parse` |
 | Parse already-preprocessed text from memory | `driver::parse_preprocessed` |
 | Parse one expression, declaration, statement, or translation unit string | `parse::*` |
 | Walk an AST you already parsed | `visit` |
 | Print an AST for debugging | `print::Printer` |
+
+## Scan headers into source IR
+
+Use this when your real target is the PARC source contract rather than the raw
+syntax tree.
+
+```rust
+use parc::scan::{scan_headers, ScanConfig};
+
+let result = scan_headers(&ScanConfig::new().entry_header("demo.h")).unwrap();
+println!("diagnostics: {}", result.package.diagnostics.len());
+```
+
+This is the best fit for downstream toolchains that want declarations,
+provenance, macros, and diagnostics in one package.
 
 ## Parse a real file
 
@@ -134,7 +150,8 @@ println!("{}", out);
 
 ## Rule of thumb
 
-- If preprocessing matters, start with `driver`.
+- If you want `SourcePackage`, start with `scan`.
+- If preprocessing matters and you still want the AST, start with `driver`.
 - If you already have plain text in memory, start with `parse`.
 - If you need diagnostics tied back to original files, keep the preprocessed source string.
 - If another crate needs PARC output, stop at `SourcePackage` and translate it outside `parc/src/**`.

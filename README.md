@@ -2,98 +2,110 @@
 
 [![Documentation](https://docs.rs/parc/badge.svg)](https://docs.rs/parc)
 
-PARC is the source-meaning layer of the pipeline: preprocessing, parsing,
-header scanning, and source-level semantic extraction.
+PARC is the source frontend of the toolchain. It owns preprocessing, parsing,
+header scanning, source extraction, source diagnostics, and the PARC-owned
+source IR.
 
-In the intended architecture:
+The current crate surface is broader than “just a parser”:
 
-- `parc` owns source meaning
-- `linc` owns link and binary meaning
-- `gerc` owns Rust lowering and emitted build metadata
+- `driver` parses files through an external preprocessor
+- `preprocess` provides a built-in C preprocessor
+- `parse` parses source fragments directly
+- `extract` lowers AST into source IR
+- `scan` turns real headers into a `SourcePackage`
+- `ir` is the durable source contract
 
-Those roles are intentionally separate. `parc` is not a link analyzer and not
-a Rust generator.
+## Ownership
 
-## Architectural Rules
+PARC owns:
 
-`parc` owns its own source model and its own source artifacts.
+- C preprocessing and preprocessing-related capture helpers
+- C parsing and parser recovery
+- AST traversal, spans, locations, and debug printing
+- source-level extraction into `parc::ir::SourcePackage`
+- end-to-end header scanning via `parc::scan`
 
-- `parc/src/**` must not depend on `linc` or `gerc`
-- cross-package translation belongs only in tests, examples, or external harnesses
-- there is no shared ABI crate
-- there is no backward-compatibility burden for discarded pipeline shapes
+PARC does not own:
 
-## Responsibilities
-
-- preprocessing C source and headers
-- parsing translation units and source fragments
-- extracting normalized source declarations
-- preserving source diagnostics and provenance
-- emitting source artifacts for downstream translation
-
-## Non-responsibilities
-
-- symbol inventory
+- symbol inspection
 - binary validation
-- native link planning
-- Rust lowering or code generation
+- link planning
+- Rust lowering or emission
+
+## Real Public Surface
+
+The most important public entrypoints today are:
+
+- `parc::driver::{Config, parse, parse_preprocessed, parse_builtin, capture_macros}`
+- `parc::scan::{ScanConfig, scan_headers}`
+- `parc::extract::{Extractor, extract_from_source, parse_and_extract, parse_and_extract_resilient}`
+- `parc::parse::*` for fragment parsing
+- `parc::ir::*` for the source contract
+- `parc::visit`, `parc::span`, `parc::loc`, and `parc::print`
+
+The crate root is intentionally broad because PARC still serves both:
+
+- downstream consumers that only want `SourcePackage`
+- parser/AST-level consumers that want direct syntax access
+
+## Fastest Working Paths
+
+Parse a file through the normal external-preprocessor path:
 
 ```rust
-use parc::driver::{Config, parse};
+use parc::driver::{parse, Config};
 
-fn main() {
-    let config = Config::default();
-    println!("{:?}", parse(&config, "example.c"));
-}
+let parsed = parse(&Config::default(), "src/tests/files/minimal.c").unwrap();
+println!("top-level items: {}", parsed.unit.0.len());
 ```
 
-## Core Workflow
+Scan headers and produce source IR directly:
 
 ```rust
-use parc::driver::{Config, parse};
+use parc::scan::{scan_headers, ScanConfig};
 
-let parsed = parse(&Config::default(), "example.c").unwrap();
-println!("items: {}", parsed.unit.0.len());
+let config = ScanConfig::new().entry_header("demo.h");
+let result = scan_headers(&config).unwrap();
+println!("ir items: {}", result.package.items.len());
+```
+
+Parse a fragment from memory:
+
+```rust
+use parc::driver::Flavor;
+use parc::parse;
+
+let expr = parse::expression("a + b * 2", Flavor::StdC11).unwrap();
+println!("{expr:#?}");
 ```
 
 ## Artifact Boundary
 
-`parc` is not the owner of a universal pipeline type.
+`parc` owns its own source model and serialized source artifacts.
 
-It owns its own source model and its own serialized artifact story.
-That artifact should contain:
+The durable boundary is `parc::ir::SourcePackage`, which contains:
 
-- extracted declarations
-- normalized source types
-- macros that matter downstream
-- provenance
-- diagnostics
-- partial or unsupported declarations
+- extracted items
+- source types
+- macros and input metadata
+- provenance and diagnostics
+- partial/unsupported source results
 
-Cross-package integration belongs outside `parc` library code. If `linc` or
-`gerc` wants to consume `parc` output, that translation should happen in:
-
-- `linc/tests/**`
-- `linc/examples/**`
-- `gerc/tests/**`
-- `gerc/examples/**`
-- external integration harnesses
-
-Never in `parc/src/**`.
-
-That rule is the main architectural guarantee: `parc` produces source
-artifacts, but it does not own downstream link or generation concerns.
+Cross-package translation still belongs outside `parc/src/**`. PARC can be
+used in integration tests and harnesses, but its library code is not where
+downstream link or generation wiring should live.
 
 ## Tested Scope
 
-The suite exercises:
+The current suite covers:
 
-- parser and preprocessor unit coverage
-- source-contract and consumability tests
-- large fixture corpora, including hostile headers and full-app fixtures
-- deterministic source-artifact serialization
+- parser and preprocessor behavior
+- scan/extract/source-contract behavior
+- determinism and JSON/source-artifact roundtrips
+- hostile headers, system headers, and full-app fixtures
+- external-fixture corpora under `src/tests/**`
 
-The tests are the main statement of supported behavior.
+The tests are the best statement of what PARC actually supports.
 
 ## Build And Test
 
@@ -102,105 +114,21 @@ make build
 make test
 ```
 
-## Bugs
+## Development Notes
 
-Just open an issue, bug reports and patches are most welcome.
+The parser implementation lives under `src/parser/`.
+
+The main source-contract and integration fixtures live under:
+
+- `src/tests/`
+- `src/tests/full_apps.rs`
+- `src/tests/system_headers.rs`
+- `src/tests/hostile_headers.rs`
+
+The book is intentionally more detailed than this README. Start there if you
+need the exact contract story for `driver`, `scan`, `extract`, or `ir`.
 
 ## License
 
-Dual-licenced under Apache 2.0 or MIT licenses (see `LICENSE-APACHE` and `LICENSE-MIT` for legal terms).
-
-## Development
-
-The parser implementation lives under `src/parser/` and is maintained directly in Rust.
-There is no external PEG generation step in the build anymore.
-
-The reference fixtures live under `test/reftests/`.
-Larger translation-unit and multi-file fixtures live under `test/full_apps/`.
-
-The makefile mirrors the normal Cargo flow:
-
-- `make build` builds the library
-- `make test` runs all tests
-
-### Full app fixtures
-
-Each full-app fixture lives in its own directory under `test/full_apps/` and includes a
-`fixture.toml` manifest plus one or more source files.
-
-Supported manifest fields:
-
-- `name` identifies the fixture in a human-readable way
-- `mode` is one of `translation_unit`, `driver`, or `preprocessed`
-- `flavor` is one of `std`, `gnu`, or `clang`
-- `entry` points at the file loaded by the harness
-- `expected` is `parse_ok` or `parse_error`
-- `include_dirs` lists local include roots for `driver` mode fixtures
-- `tags` adds corpus filters such as `synthetic`, `external`, or `preprocessed`
-- `source`, `upstream_ref`, `license`, and `notes` record provenance
-
-Example:
-
-```toml
-name = "mini_http"
-mode = "driver"
-flavor = "gnu"
-entry = "src/main.c"
-expected = "parse_ok"
-include_dirs = ["include"]
-tags = ["synthetic", "multi_file"]
-source = "synthetic"
-license = "repo"
-```
-
-Mode behavior:
-
-- `translation_unit` parses the entry file directly
-- `driver` preprocesses through the configured C compiler and then parses
-- `preprocessed` parses a pinned `.i` snapshot through `driver::parse_preprocessed`
-
-### Test filtering and CI tiers
-
-The full-app runner supports these environment filters:
-
-- `FULL_APP_FILTER=<path-fragment>` runs only matching fixture directories
-- `FULL_APP_TAG=<tag>` runs only fixtures whose manifest contains that tag
-- `TEST_FILTER=<prefix>` still filters the legacy `test/reftests/` corpus
-
-The CI workflow is split into two tiers:
-
-- fast tier: push and pull request coverage for unit tests, reftests, and synthetic full apps
-- slow tier: scheduled coverage for the complete full-app corpus, including external fixtures
-
-To reproduce the fast CI tier locally:
-
-```sh
-FULL_APP_TAG=synthetic make test
-```
-
-To run one full-app fixture locally:
-
-```sh
-FULL_APP_FILTER=musl/stdint make test
-```
-
-### Adding external fixtures
-
-External fixtures must be pinned and documented. When adding one:
-
-1. Create a new directory under `test/full_apps/external/`.
-2. Add a `fixture.toml` with `source`, `upstream_ref`, `license`, `notes`, and `tags`.
-3. Record the provenance in `test/full_apps/EXTERNAL_SOURCES.md`.
-4. Add the corresponding license text or note under `test/full_apps/licenses/`.
-5. Keep the imported files deterministic and trimmed only when necessary.
-
-The helper script:
-
-```sh
-test/full_apps/scripts/refresh_external_fixture.sh list
-test/full_apps/scripts/refresh_external_fixture.sh show musl-stdint
-```
-
-documents the pinned external fixtures already in the repository. When an external fixture is
-re-pinned, update the vendored files, `fixture.toml`, `EXTERNAL_SOURCES.md`, and the
-corresponding license notes in the same change.
+Dual-licensed under Apache 2.0 or MIT (see `LICENSE-APACHE` and
+`LICENSE-MIT`).

@@ -19,7 +19,8 @@ The intended downstream pattern is:
 3. consume the `SourcePackage` IR from `ir`
 4. use `visit`, `span`, and `loc` to analyze AST-level details if needed
 
-Downstream consumers should depend on `parc::ir`, not on `parc::ast` directly.
+Downstream consumers that want source contracts should depend on `parc::ir`,
+not on `parc::ast` directly.
 
 More importantly for this repository:
 
@@ -93,6 +94,15 @@ Today the strongest practical contract is:
 - the span/location model under `span` and `loc`
 
 Those are the surfaces the rest of the book assumes consumers will use.
+
+The important correction is this: PARC has two practical contracts today, not
+one:
+
+1. a source-contract path centered on `ir`, `extract`, and `scan`
+2. a parser-facing path centered on `driver`, `parse`, `ast`, and `visit`
+
+The docs should not pretend the AST side does not exist, because the crate
+very much exposes it.
 
 ## What is intentionally weaker
 

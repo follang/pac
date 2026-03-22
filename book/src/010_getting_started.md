@@ -1,7 +1,7 @@
 # Getting Started
 
-This chapter is the shortest path from raw C source or headers to a PARC-owned
-source artifact.
+This chapter is the shortest path from real source or headers to something that
+PARC actually produces today: either a parsed AST or a `SourcePackage`.
 
 Read `parc` as the source frontend of the toolchain:
 
@@ -22,14 +22,15 @@ parc = { path = "../parc" }
 
 ## Pick the right API first
 
-Use `parc::driver` when you have a file on disk and want PARC to run a system preprocessor first.
+Use `parc::driver` when you have a file on disk and want PARC to run a system
+preprocessor first.
 
 ```rust
 use parc::driver::{parse, Config};
 
 fn main() -> Result<(), parc::driver::Error> {
     let config = Config::default();
-    let parsed = parse(&config, "examples/sample.c")?;
+    let parsed = parse(&config, "src/tests/files/minimal.c")?;
 
     println!("preprocessed bytes: {}", parsed.source.len());
     println!("top-level items: {}", parsed.unit.0.len());
@@ -37,7 +38,8 @@ fn main() -> Result<(), parc::driver::Error> {
 }
 ```
 
-Use `parc::parse` when you already have source text in memory and want to parse a fragment directly.
+Use `parc::parse` when you already have source text in memory and want to parse
+a fragment directly.
 
 ```rust
 use parc::driver::Flavor;
@@ -73,15 +75,15 @@ let gnu = Config::with_gcc();
 let clang = Config::with_clang();
 ```
 
-## First useful example
+## First useful parse example
 
-This example parses a translation unit and counts top-level entries:
+This example parses a translation unit through the normal driver path:
 
 ```rust
 use parc::driver::{parse, Config};
 
 fn main() -> Result<(), parc::driver::Error> {
-    let parsed = parse(&Config::default(), "examples/header.h")?;
+    let parsed = parse(&Config::default(), "src/tests/files/minimal.c")?;
 
     for (i, item) in parsed.unit.0.iter().enumerate() {
         println!("item #{i}: {:?}", item.node);
@@ -90,6 +92,22 @@ fn main() -> Result<(), parc::driver::Error> {
     Ok(())
 }
 ```
+
+## First useful scan example
+
+If what you really want is source IR rather than a raw AST, start with
+`parc::scan`:
+
+```rust
+use parc::scan::{scan_headers, ScanConfig};
+
+let config = ScanConfig::new().entry_header("demo.h");
+let result = scan_headers(&config).unwrap();
+
+println!("items: {}", result.package.items.len());
+```
+
+This is the closest thing PARC has to a “frontend product” API.
 
 ## First fragment example
 
@@ -110,8 +128,9 @@ fn main() {
 
 ## What to read next
 
-- [Common Workflows](./015_workflows.md) for choosing between `driver`, `parse_preprocessed`, and `parse`
+- [Common Workflows](./015_workflows.md) for choosing between `scan`, `driver`, `parse_preprocessed`, and `parse`
 - [Driver API](./020_driver.md) for preprocessing and file-based parsing
+- [Header Scanning](./028_scanning.md) for source-contract-first workflows
 - [Parser API](./030_parser.md) for fragment parsing
 
 ## Architectural boundary

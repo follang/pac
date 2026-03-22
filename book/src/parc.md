@@ -1,82 +1,81 @@
 # PARC Reference
 
-PARC is a Rust library for C language frontend processing: preprocessing,
-parsing, and source-level semantic extraction. It targets C11 and can
-optionally accept GNU and Clang extensions.
+PARC is the source frontend of the toolchain. The real crate surface today is:
 
-PARC produces a durable `SourcePackage` contract suitable for downstream
-consumption by linker and codegen stages.
+- preprocessing through both external-driver and built-in paths
+- C parsing into a typed AST
+- extraction into a durable source IR
+- header scanning that goes straight to `SourcePackage`
+- AST-oriented support APIs such as visiting, spans, locations, and printing
+
+That means the crate serves two audiences at once:
+
+1. downstream tools that want `parc::ir::SourcePackage`
+2. parser-facing tools that want direct AST access
 
 ## What PARC Owns
 
-- **Preprocessing**: built-in C preprocessor with macro expansion, conditionals, and includes
-- **Parsing**: C11 parser producing a typed AST under `parc::ast`
-- **Extraction**: source-level declaration normalization into `parc::ir`
-- **Source IR**: a serializable `SourcePackage` with functions, records, enums, typedefs, variables, macros, diagnostics, and provenance
-- **Scanning**: end-to-end header scanning via `parc::scan`
-- Source spans under `parc::span`
-- File/line reconstruction under `parc::loc`
-- Recursive visitor API under `parc::visit`
-- Tree-style debug printer under `parc::print`
+- preprocessing
+- parsing
+- parser recovery
+- source extraction
+- source diagnostics and provenance
+- source IR
+- header scanning
+- AST traversal and debug support
 
 ## What PARC Does Not Own
 
-- native symbol inspection
+- symbol inventories
 - binary validation
 - link-plan construction
-- Rust lowering or emission
+- Rust lowering or crate emission
 
-## Data flow
+## Actual Data Flow
 
 ```text
-C source / headers
-  -> preprocessor (built-in or gcc/clang)
-  -> PARC parser
+raw source / headers
+  -> driver or built-in preprocessor
+  -> parser AST
   -> extraction
-  -> SourcePackage (frontend contract)
-  -> downstream (LINC, GERC)
+  -> SourcePackage
+  -> serialized source artifact or downstream harness
 ```
 
-## Module layout
+`scan` short-circuits that flow into one high-level operation. `parse` and
+`driver` expose earlier stages for syntax-level consumers.
 
-| Module | Purpose |
+## Module Layout
+
+| Module | What it is actually for |
 | --- | --- |
-| `ir` | Source-level IR: `SourcePackage`, `SourceType`, `SourceItem`, etc. |
-| `extract` | Declaration extraction from AST to IR |
-| `scan` | Header scanning (preprocess + parse + extract) |
-| `intake` | Preprocessed source intake |
-| `driver` | High-level API for parsing files via a C preprocessor |
-| `preprocess` | Built-in C preprocessor |
-| `parse` | Direct parsing of expressions, declarations, statements, translation units |
-| `ast` | AST definitions for declarations, expressions, statements, extensions |
-| `visit` | Recursive traversal API for AST consumers |
-| `span` | Byte offsets for parsed nodes |
-| `loc` | Mapping byte offsets back to source files and lines |
-| `print` | Debug-oriented tree printer for ASTs |
+| `driver` | file-oriented parse flow using an external preprocessor |
+| `preprocess` | built-in preprocessing, tokenization, include resolution |
+| `parse` | fragment parsing and direct translation-unit parsing from strings |
+| `scan` | end-to-end header scanning into `SourcePackage` |
+| `extract` | AST-to-IR lowering and normalization |
+| `ir` | durable PARC-owned source contract |
+| `ast` | syntax tree for parser-facing consumers |
+| `visit` | traversal hooks over the AST |
+| `span` / `loc` | source-position helpers |
+| `print` | debug-oriented AST printer |
+| `intake` | already-preprocessed source intake helpers |
 
-## Artifact boundary
+## Boundary
 
-`parc` owns source meaning only.
+The strongest consumer boundary is `parc::ir::SourcePackage`.
 
-The `SourcePackage` boundary is where `parc` stops:
+That is the point where PARC stops owning the problem. Anything involving
+binary evidence or Rust generation is downstream from PARC, even if tests and
+harnesses compose those crates together elsewhere.
 
-- `parc/src/**` must not depend on `linc` or `gerc`
-- downstream translation belongs only in tests, examples, or external harnesses
-- `parc` does not own link or generation concerns
+## Reading Strategy
 
-## Typical use cases
+Read the book in one of these orders:
 
-- Extract function/struct/enum declarations from C headers
-- Build a linter or analysis tool for C code
-- Scan headers and produce a serializable source package
-- Parse small fragments in tests
-- Prototype refactoring or code-search tools
-
-## Where to start
-
-- Read [Getting Started](./010_getting_started.md) for basic setup
-- Read [Source IR](./026_source_ir.md) for the data contract
-- Read [Extraction](./027_extraction.md) for turning source into IR
-- Read [Header Scanning](./028_scanning.md) for end-to-end workflows
-- Read [Driver API](./020_driver.md) or [Parser API](./030_parser.md) for parse-level access
-- Read [AST Model](./040_ast.md) before writing analysis code
+1. source-contract path:
+   `Getting Started -> Source IR -> Extraction -> Header Scanning -> API Contract`
+2. parser-facing path:
+   `Getting Started -> Driver API -> Parser API -> AST Model -> Visitor Pattern`
+3. contributor/debug path:
+   `Project Layout -> Testing -> Diagnostics And Printing -> Parser Boundaries`

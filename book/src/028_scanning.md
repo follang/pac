@@ -1,7 +1,8 @@
 # Header Scanning
 
-The `parc::scan` module provides end-to-end header scanning: preprocess
-C headers and extract a `SourcePackage` in one step.
+`parc::scan` is the highest-level PARC API for people who want the source
+contract, not just the AST. It preprocesses headers, parses them, extracts
+items, and returns a `SourcePackage` plus the preprocessed source text.
 
 ## Quick Start
 
@@ -17,6 +18,19 @@ let config = ScanConfig::new()
 let result = scan_headers(&config).unwrap();
 let pkg = result.package;
 ```
+
+## What `scan` really owns
+
+The scan path currently owns all of these steps:
+
+1. choose builtin or external preprocessing
+2. build the preprocessing environment
+3. parse the preprocessed translation unit
+4. extract declarations into `parc::ir`
+5. attach input metadata and diagnostics
+6. optionally resolve typedef chains in the produced package
+
+That makes it the closest thing PARC has to a “source artifact producer”.
 
 ## ScanConfig
 
@@ -41,8 +55,9 @@ compiler to be installed. Supports all system headers.
 
 ### Built-in
 
-Uses `parc::preprocess` for self-contained headers that don't need
-system includes. No external compiler required.
+Uses `parc::preprocess` directly. This is useful for controlled fixtures and
+repo-local tests. It is not a promise that the built-in preprocessor already
+matches every hostile system-header stack.
 
 ## ScanResult
 
@@ -65,3 +80,14 @@ let input = PreprocessedInput::from_string("int foo(void);")
 
 let pkg = input.extract();
 ```
+
+## What to expect from failures
+
+`scan_headers()` can fail early on preprocessing setup problems, and it can
+also return a package with parse diagnostics if preprocessing succeeded but the
+source could not be fully parsed.
+
+That split is intentional:
+
+- operational setup failures are `Err(...)`
+- source-level failures become `package.diagnostics` when possible
