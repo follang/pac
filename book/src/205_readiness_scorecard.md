@@ -9,7 +9,7 @@ PARC should currently be read as:
 
 - strong on parser and extraction fundamentals
 - strong on scan-first vendored baselines
-- useful but still incomplete on hostile real-world preprocessing corners
+- materially stronger on hostile real-world builtin-preprocessor corners
 - intentionally conservative when a large header family cannot be modeled
   honestly
 
@@ -23,7 +23,7 @@ header in the wild".
 - extraction to `SourcePackage`: high
 - scan-first vendored baselines: high
 - hostile-header recovery: medium-high
-- built-in preprocessor coverage on ugly system headers: medium
+- built-in preprocessor coverage on ugly system headers: medium-high
 - large host-dependent wrapper extraction: medium-high
 - deterministic behavior on canonical large surfaces: high
 
@@ -33,7 +33,7 @@ The release posture should be judged against these anchors first:
 
 - vendored musl `stdint`
 - vendored zlib
-- vendored libpng conservative-failure path
+- vendored libpng scan
 - OpenSSL public wrapper extraction
 - combined Linux event-loop wrapper extraction
 
@@ -44,8 +44,8 @@ drift, the scorecard should be lowered even if many smaller tests still pass.
 
 The next meaningful gains would be:
 
-- broader built-in-preprocessor coverage on libpng-style width and platform
-  checks
+- broader built-in-preprocessor coverage on other hostile width and platform
+  gates beyond the libpng family
 - more ugly combined system-header clusters
 - more repeat-run deterministic scans on large host-dependent surfaces
 - clearer unsupported-case diagnostics for the remaining difficult families

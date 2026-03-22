@@ -28,7 +28,7 @@ These are the first surfaces that should stay green on every machine:
 
 - vendored musl `stdint`
 - vendored zlib
-- vendored libpng conservative-failure path
+- vendored libpng builtin-preprocessor success path
 - parser and extraction corpus fixtures under `src/tests/**`
 
 These matter because they exercise:
@@ -57,7 +57,6 @@ understand everything:
 
 - hostile declaration fixtures
 - recovery fixtures
-- builtin-preprocessor limitations on libpng-style width checks
 - unsupported or partial declaration families that still emit diagnostics and
   partial metadata
 
@@ -73,7 +72,7 @@ The most important repeat-run anchors right now are:
 
 - vendored musl scan
 - vendored zlib scan
-- vendored libpng conservative-failure path
+- vendored libpng scan
 - OpenSSL wrapper extraction
 - combined Linux event-loop wrapper extraction
 

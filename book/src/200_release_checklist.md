@@ -59,7 +59,7 @@ Before releasing a `SourcePackage` shape change:
 - the canonical hardening surfaces are still green
   - vendored musl `stdint`
   - vendored zlib
-  - vendored libpng conservative-failure path
+  - vendored libpng scan
   - OpenSSL public wrapper extraction
   - combined Linux event-loop wrapper extraction
 - deterministic repeated extraction still holds on the canonical large surfaces

@@ -115,7 +115,7 @@ The current hardening ladder is easiest to read in four buckets:
 - hermetic vendored baselines
   - musl `stdint`
   - vendored zlib
-  - vendored libpng failure surface
+  - vendored libpng builtin-preprocessor success surface
 - host-dependent public-header ladders
   - OpenSSL public wrapper extraction
   - Linux combined event-loop wrapper extraction
@@ -124,10 +124,9 @@ The current hardening ladder is easiest to read in four buckets:
   - resilient recovery fixtures
   - explicit preprocess failure matrix
   - explicit source refusal and recovery matrix
-  - conservative failure on libpng builtin-preprocessor width checks
 - determinism anchors
   - vendored musl scan
-  - vendored libpng failure path
+  - vendored libpng scan
   - OpenSSL wrapper extraction
   - combined Linux event-loop wrapper extraction
 
@@ -148,8 +147,8 @@ system header family is equally mature.
 The current canonical frontend surfaces are:
 
 - vendored musl `stdint`
-- vendored zlib failure-conservative scan
-- vendored libpng failure-conservative scan
+- vendored zlib scan
+- vendored libpng scan
 - OpenSSL public wrapper extraction
 - combined Linux event-loop wrapper extraction
 
