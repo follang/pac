@@ -13,6 +13,9 @@ PARC should currently be read as:
 - intentionally conservative when a large header family cannot be modeled
   honestly
 
+For whole-pipeline claims, this score is also capped by downstream `gerc`
+anchors that ingest translated PARC source surfaces in tests/examples.
+
 That is good progress, but it is not the same thing as "finished for every C
 header in the wild".
 

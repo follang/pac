@@ -154,6 +154,9 @@ system header family is equally mature.
 - at least one combined system-header target
 - deterministic repeated extraction on canonical large surfaces
 - deterministic repeated extraction on repo-owned hostile corpora
+- for whole-pipeline production claims, confirm the current downstream `gerc`
+  canonical anchors still ingest `parc`-driven source surfaces in
+  tests/examples
 
 The current canonical frontend surfaces are:
 
@@ -187,6 +190,10 @@ The current PARC production corpus is intentionally named:
   - resilient-source recovery paths
 
 Those are the surfaces PARC should be judged against first.
+
+Whole-pipeline readiness is stricter than crate-local readiness: downstream
+`gerc` canonical anchors are part of the final production bar even though
+`parc/src/**` must not depend on downstream crates.
 
 ## Build And Test
 
