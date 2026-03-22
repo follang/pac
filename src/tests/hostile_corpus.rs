@@ -81,6 +81,31 @@ fn hostile_combo_env_corpus_scans_with_builtin_preprocessor() {
 }
 
 #[test]
+fn hostile_order_env_d_corpus_scans_with_builtin_preprocessor() {
+    let root = corpus_root("order_env_d");
+    let include_dir = root.join("include");
+    let entry = root.join("entry.h");
+
+    let result = scan_headers(
+        &ScanConfig::new()
+            .entry_header(&entry)
+            .include_dir(&include_dir)
+            .with_builtin_preprocessor()
+            .with_resolve_typedefs(),
+    )
+    .expect("order hostile corpus should scan");
+
+    let pkg = &result.package;
+    assert!(pkg.find_type_alias("order_word_t").is_some());
+    assert!(pkg.find_record("order_packet").is_some());
+    assert!(pkg.find_enum("order_mode").is_some());
+    assert!(pkg.find_function("order_open").is_some());
+    assert!(pkg.find_function("order_log").is_some());
+    assert!(result.preprocessed_source.contains("ORDER_MODE_WIDE"));
+    assert!(result.preprocessed_source.contains("order_log"));
+}
+
+#[test]
 fn hostile_macro_env_corpus_builtin_and_external_preprocessors_agree_on_items() {
     let root = corpus_root("macro_env_a");
     let include_dir = root.join("include");
