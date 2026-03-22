@@ -19,6 +19,10 @@ fn failure_matrix_source_resilient_mode_keeps_good_items() {
     assert!(pkg.find_type_alias("ok_t").is_some());
     assert!(pkg.find_function("still_ok").is_some());
     assert!(pkg.item_count() >= 2);
+    let status = pkg.extraction_status();
+    assert_eq!(status.trustworthy_item_count, pkg.item_count());
+    assert_eq!(status.parse_failure_count, 0);
+    assert!(pkg.extraction_status_message().contains("trustworthy extracted items"));
 }
 
 #[test]
@@ -37,4 +41,7 @@ fn failure_matrix_source_static_helper_becomes_diagnostic_not_silent_drop() {
         .diagnostics
         .iter()
         .any(|diag| diag.message.contains("static")));
+    let status = pkg.extraction_status();
+    assert_eq!(status.trustworthy_item_count, pkg.item_count());
+    assert!(status.unsupported_diagnostic_count >= 1);
 }

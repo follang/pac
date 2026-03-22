@@ -72,5 +72,8 @@ fn failure_matrix_preprocess_vendored_zlib_stays_conservative_and_diagnostic() {
         .diagnostics
         .iter()
         .any(|diag| diag.kind == DiagnosticKind::ParseFailed));
+    let status = result.package.extraction_status();
+    assert_eq!(status.trustworthy_item_count, 0);
+    assert_eq!(status.parse_failure_count, 1);
     assert!(result.preprocessed_source.contains("z_stream"));
 }

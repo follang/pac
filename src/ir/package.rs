@@ -20,6 +20,16 @@ fn default_schema_version() -> u32 {
     SCHEMA_VERSION
 }
 
+/// High-level degradation and trust summary for a source package.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExtractionStatus {
+    pub item_count: usize,
+    pub trustworthy_item_count: usize,
+    pub partial_diagnostic_count: usize,
+    pub unsupported_diagnostic_count: usize,
+    pub parse_failure_count: usize,
+}
+
 /// The top-level frontend contract produced by PARC.
 ///
 /// Contains all source-level information extracted from C headers:
@@ -204,6 +214,57 @@ impl SourcePackage {
             *counts.entry(key).or_insert(0) += 1;
         }
         counts
+    }
+
+    /// Summarize what degraded during extraction and how many items remain
+    /// trustworthy enough for downstream consumers to inspect.
+    pub fn extraction_status(&self) -> ExtractionStatus {
+        let partial_diagnostic_count = self
+            .diagnostics
+            .iter()
+            .filter(|diag| matches!(diag.kind, super::diagnostics::DiagnosticKind::DeclarationPartial))
+            .count();
+        let unsupported_diagnostic_count = self
+            .diagnostics
+            .iter()
+            .filter(|diag| {
+                matches!(
+                    diag.kind,
+                    super::diagnostics::DiagnosticKind::DeclarationUnsupported
+                )
+            })
+            .count();
+        let parse_failure_count = self
+            .diagnostics
+            .iter()
+            .filter(|diag| matches!(diag.kind, super::diagnostics::DiagnosticKind::ParseFailed))
+            .count();
+        let trustworthy_item_count = if parse_failure_count > 0 {
+            0
+        } else {
+            self.item_count()
+        };
+
+        ExtractionStatus {
+            item_count: self.item_count(),
+            trustworthy_item_count,
+            partial_diagnostic_count,
+            unsupported_diagnostic_count,
+            parse_failure_count,
+        }
+    }
+
+    /// Render a concise human-readable summary of extraction trust and
+    /// degradation state for logging, diagnostics, and release gates.
+    pub fn extraction_status_message(&self) -> String {
+        let status = self.extraction_status();
+        format!(
+            "{} trustworthy extracted items; {} partial diagnostics; {} unsupported diagnostics; {} parse failures",
+            status.trustworthy_item_count,
+            status.partial_diagnostic_count,
+            status.unsupported_diagnostic_count,
+            status.parse_failure_count,
+        )
     }
 
     /// Build a typedef lookup table from this package's type aliases.
@@ -627,6 +688,56 @@ mod tests {
         let counts = pkg.diagnostics_count_by_kind();
         assert_eq!(counts["DeclarationPartial"], 2);
         assert_eq!(counts["ParseFailed"], 1);
+    }
+
+    #[test]
+    fn extraction_status_counts_partial_and_unsupported() {
+        use super::super::diagnostics::{DiagnosticKind, SourceDiagnostic};
+
+        let mut pkg = SourcePackage::new();
+        pkg.items.push(SourceItem::TypeAlias(SourceTypeAlias {
+            name: "ok_t".into(),
+            target: SourceType::Int,
+            source_offset: None,
+        }));
+        pkg.diagnostics.push(SourceDiagnostic::warning(
+            DiagnosticKind::DeclarationPartial,
+            "bitfield layout partially represented",
+        ));
+        pkg.diagnostics.push(SourceDiagnostic::warning(
+            DiagnosticKind::DeclarationUnsupported,
+            "block pointer not supported",
+        ));
+
+        let status = pkg.extraction_status();
+        assert_eq!(status.item_count, 1);
+        assert_eq!(status.trustworthy_item_count, 1);
+        assert_eq!(status.partial_diagnostic_count, 1);
+        assert_eq!(status.unsupported_diagnostic_count, 1);
+        assert_eq!(status.parse_failure_count, 0);
+        assert!(pkg.extraction_status_message().contains("1 trustworthy extracted items"));
+    }
+
+    #[test]
+    fn extraction_status_zeroes_trust_on_parse_failure() {
+        use super::super::diagnostics::{DiagnosticKind, SourceDiagnostic};
+
+        let mut pkg = SourcePackage::new();
+        pkg.items.push(SourceItem::TypeAlias(SourceTypeAlias {
+            name: "maybe_t".into(),
+            target: SourceType::Int,
+            source_offset: None,
+        }));
+        pkg.diagnostics.push(SourceDiagnostic::error(
+            DiagnosticKind::ParseFailed,
+            "parse error at line 10:7",
+        ));
+
+        let status = pkg.extraction_status();
+        assert_eq!(status.item_count, 1);
+        assert_eq!(status.trustworthy_item_count, 0);
+        assert_eq!(status.parse_failure_count, 1);
+        assert!(pkg.extraction_status_message().contains("1 parse failures"));
     }
 
     #[test]
