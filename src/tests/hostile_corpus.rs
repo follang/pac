@@ -199,3 +199,77 @@ fn hostile_combo_env_corpus_builtin_and_external_preprocessors_agree_on_items() 
     assert!(external.package.item_count() >= builtin.package.item_count());
     assert!(external.preprocessed_source.contains("combo_log"));
 }
+
+#[test]
+fn hostile_order_env_d_corpus_builtin_and_external_preprocessors_agree_on_items() {
+    let root = corpus_root("order_env_d");
+    let include_dir = root.join("include");
+    let entry = root.join("entry.h");
+
+    let builtin = scan_headers(
+        &ScanConfig::new()
+            .entry_header(&entry)
+            .include_dir(&include_dir)
+            .with_builtin_preprocessor()
+            .with_resolve_typedefs(),
+    )
+    .expect("builtin order corpus scan should succeed");
+
+    let external = scan_headers(
+        &ScanConfig::new()
+            .entry_header(&entry)
+            .include_dir(&include_dir)
+            .with_resolve_typedefs(),
+    )
+    .expect("external order corpus scan should succeed");
+
+    assert!(builtin.package.find_type_alias("order_word_t").is_some());
+    assert!(external.package.find_type_alias("order_word_t").is_some());
+    assert!(builtin.package.find_record("order_packet").is_some());
+    assert!(external.package.find_record("order_packet").is_some());
+    assert!(builtin.package.find_enum("order_mode").is_some());
+    assert!(external.package.find_enum("order_mode").is_some());
+    assert!(builtin.package.find_function("order_open").is_some());
+    assert!(external.package.find_function("order_open").is_some());
+    assert!(builtin.package.find_function("order_log").is_some());
+    assert!(external.package.find_function("order_log").is_some());
+    assert!(external.package.item_count() >= builtin.package.item_count());
+    assert!(external.preprocessed_source.contains("order_log"));
+}
+
+#[test]
+fn hostile_include_env_e_corpus_builtin_and_external_preprocessors_agree_on_items() {
+    let root = corpus_root("include_env_e");
+    let include_dir = root.join("include");
+    let entry = root.join("entry.h");
+
+    let builtin = scan_headers(
+        &ScanConfig::new()
+            .entry_header(&entry)
+            .include_dir(&include_dir)
+            .with_builtin_preprocessor()
+            .with_resolve_typedefs(),
+    )
+    .expect("builtin include-order corpus scan should succeed");
+
+    let external = scan_headers(
+        &ScanConfig::new()
+            .entry_header(&entry)
+            .include_dir(&include_dir)
+            .with_resolve_typedefs(),
+    )
+    .expect("external include-order corpus scan should succeed");
+
+    assert!(builtin.package.find_type_alias("include_counter_t").is_some());
+    assert!(external.package.find_type_alias("include_counter_t").is_some());
+    assert!(builtin.package.find_type_alias("include_log_sink").is_some());
+    assert!(external.package.find_type_alias("include_log_sink").is_some());
+    assert!(builtin.package.find_record("include_frame").is_some());
+    assert!(external.package.find_record("include_frame").is_some());
+    assert!(builtin.package.find_function("include_open").is_some());
+    assert!(external.package.find_function("include_open").is_some());
+    assert!(builtin.package.find_function("include_flush").is_some());
+    assert!(external.package.find_function("include_flush").is_some());
+    assert!(external.package.item_count() >= builtin.package.item_count());
+    assert!(external.preprocessed_source.contains("include_flush"));
+}
