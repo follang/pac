@@ -3,6 +3,12 @@
 Most confusion with PAC comes from choosing the wrong entry point. This chapter maps common tasks to
 the right API.
 
+Read the workflows in this order:
+
+1. prefer source/frontend workflows that stay inside `parc`
+2. serialize `SourcePackage` when another tool needs the result
+3. keep any cross-package translation in tests, examples, or external harnesses
+
 ## Workflow selection
 
 | Situation | API |
@@ -131,3 +137,4 @@ println!("{}", out);
 - If preprocessing matters, start with `driver`.
 - If you already have plain text in memory, start with `parse`.
 - If you need diagnostics tied back to original files, keep the preprocessed source string.
+- If another crate needs PARC output, stop at `SourcePackage` and translate it outside `parc/src/**`.
