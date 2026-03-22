@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7851b8d0.js";
+            window.path_to_searchindex_js = "searchindex-75159a9b.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-faeb9e03.js"></script>
+        <script src="toc-6cd1cca1.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -191,7 +191,7 @@ println!("items: {}", parsed.unit.0.len());
 <li>macros matter</li>
 <li>compiler predefined types or macros matter</li>
 </ul>
-<p>The result gives you both the AST and the exact preprocessed source PAC saw.</p>
+<p>The result gives you both the AST and the exact preprocessed source PARC saw.</p>
 <h2 id="workflow-2-parse-a-preprocessed-snapshot"><a class="header" href="#workflow-2-parse-a-preprocessed-snapshot">Workflow 2: Parse A Preprocessed Snapshot</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -250,7 +250,7 @@ counter.visit_translation_unit(&amp;parsed.unit);
 println!("return statements: {}", counter.count);
 <span class="boring">Ok::&lt;(), parc::driver::Error&gt;(())
 </span><span class="boring">}</span></code></pre>
-<p>This is the normal PAC analyzer pattern:</p>
+<p>This is the normal PARC analyzer pattern:</p>
 <ol>
 <li>parse</li>
 <li>traverse</li>

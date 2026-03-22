@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7851b8d0.js";
+            window.path_to_searchindex_js = "searchindex-75159a9b.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-faeb9e03.js"></script>
+        <script src="toc-6cd1cca1.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -175,7 +175,7 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="common-workflows"><a class="header" href="#common-workflows">Common Workflows</a></h1>
-<p>Most confusion with PAC comes from choosing the wrong entry point. This chapter maps common tasks to
+<p>Most confusion with PARC comes from choosing the wrong entry point. This chapter maps common tasks to
 the right API.</p>
 <p>Read the workflows in this order:</p>
 <ol>
@@ -190,6 +190,7 @@ the right API.</p>
 <tr><th>Situation</th><th>API</th></tr>
 </thead>
 <tbody>
+<tr><td>Turn headers into <code>SourcePackage</code></td><td><code>scan::scan_headers</code></td></tr>
 <tr><td>Parse a <code>.c</code> or <code>.h</code> file with includes and macros</td><td><code>driver::parse</code></td></tr>
 <tr><td>Parse already-preprocessed text from memory</td><td><code>driver::parse_preprocessed</code></td></tr>
 <tr><td>Parse one expression, declaration, statement, or translation unit string</td><td><code>parse::*</code></td></tr>
@@ -198,6 +199,18 @@ the right API.</p>
 </tbody>
 </table>
 </div>
+<h2 id="scan-headers-into-source-ir"><a class="header" href="#scan-headers-into-source-ir">Scan headers into source IR</a></h2>
+<p>Use this when your real target is the PARC source contract rather than the raw
+syntax tree.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use parc::scan::{scan_headers, ScanConfig};
+
+let result = scan_headers(&amp;ScanConfig::new().entry_header("demo.h")).unwrap();
+println!("diagnostics: {}", result.package.diagnostics.len());
+<span class="boring">}</span></code></pre>
+<p>This is the best fit for downstream toolchains that want declarations,
+provenance, macros, and diagnostics in one package.</p>
 <h2 id="parse-a-real-file"><a class="header" href="#parse-a-real-file">Parse a real file</a></h2>
 <p>Use this when your source depends on <code>#include</code>, <code>#define</code>, or compiler predefined macros.</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -213,7 +226,7 @@ let parsed = parse(&amp;config, "src/main.c")?;
 <li><code>parsed.unit</code>: the AST root</li>
 </ul>
 <h2 id="parse-preprocessed-text"><a class="header" href="#parse-preprocessed-text">Parse preprocessed text</a></h2>
-<p>Use this when another tool already ran preprocessing and you only want PAC to parse.</p>
+<p>Use this when another tool already ran preprocessing and you only want PARC to parse.</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use parc::driver::{parse_preprocessed, Config};
@@ -303,7 +316,8 @@ println!("{}", out);
 </span><span class="boring">}</span></code></pre>
 <h2 id="rule-of-thumb"><a class="header" href="#rule-of-thumb">Rule of thumb</a></h2>
 <ul>
-<li>If preprocessing matters, start with <code>driver</code>.</li>
+<li>If you want <code>SourcePackage</code>, start with <code>scan</code>.</li>
+<li>If preprocessing matters and you still want the AST, start with <code>driver</code>.</li>
 <li>If you already have plain text in memory, start with <code>parse</code>.</li>
 <li>If you need diagnostics tied back to original files, keep the preprocessed source string.</li>
 <li>If another crate needs PARC output, stop at <code>SourcePackage</code> and translate it outside <code>parc/src/**</code>.</li>

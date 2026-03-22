@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7851b8d0.js";
+            window.path_to_searchindex_js = "searchindex-75159a9b.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-faeb9e03.js"></script>
+        <script src="toc-6cd1cca1.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -199,7 +199,7 @@ pub struct Parse {
 <span class="boring">}</span></code></pre>
 <p>The return value matters:</p>
 <ul>
-<li><code>source</code> is the preprocessed source PAC actually parsed</li>
+<li><code>source</code> is the preprocessed source PARC actually parsed</li>
 <li><code>unit</code> is the AST root</li>
 </ul>
 <h2 id="basic-file-parsing"><a class="header" href="#basic-file-parsing">Basic file parsing</a></h2>
@@ -303,7 +303,7 @@ match parse_preprocessed(&amp;Config::default(), broken) {
 <p>If the preprocessed source contains line markers, <code>SyntaxError::get_location()</code> can reconstruct the
 original file and include stack.</p>
 <h2 id="built-in-preprocessor"><a class="header" href="#built-in-preprocessor">Built-in preprocessor</a></h2>
-<p>PAC includes a built-in C preprocessor that eliminates the need for an external
+<p>PARC includes a built-in C preprocessor that eliminates the need for an external
 <code>gcc</code> or <code>clang</code> binary. Use <code>parse_builtin</code> instead of <code>parse</code>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {

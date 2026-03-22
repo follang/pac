@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7851b8d0.js";
+            window.path_to_searchindex_js = "searchindex-75159a9b.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-faeb9e03.js"></script>
+        <script src="toc-6cd1cca1.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -176,115 +176,115 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="parc-reference"><a class="header" href="#parc-reference">PARC Reference</a></h1>
-<p>PARC is a Rust library for C language frontend processing: preprocessing,
-parsing, and source-level semantic extraction. It targets C11 and can
-optionally accept GNU and Clang extensions.</p>
-<p>PARC produces a durable <code>SourcePackage</code> contract suitable for downstream
-consumption by linker and codegen stages.</p>
+<p>PARC is the source frontend of the toolchain. The real crate surface today is:</p>
+<ul>
+<li>preprocessing through both external-driver and built-in paths</li>
+<li>C parsing into a typed AST</li>
+<li>extraction into a durable source IR</li>
+<li>header scanning that goes straight to <code>SourcePackage</code></li>
+<li>AST-oriented support APIs such as visiting, spans, locations, and printing</li>
+</ul>
+<p>That means the crate serves two audiences at once:</p>
+<ol>
+<li>downstream tools that want <code>parc::ir::SourcePackage</code></li>
+<li>parser-facing tools that want direct AST access</li>
+</ol>
 <h2 id="what-parc-owns"><a class="header" href="#what-parc-owns">What PARC Owns</a></h2>
 <ul>
-<li><strong>Preprocessing</strong>: built-in C preprocessor with macro expansion, conditionals, and includes</li>
-<li><strong>Parsing</strong>: C11 parser producing a typed AST under <code>parc::ast</code></li>
-<li><strong>Extraction</strong>: source-level declaration normalization into <code>parc::ir</code></li>
-<li><strong>Source IR</strong>: a serializable <code>SourcePackage</code> with functions, records, enums, typedefs, variables, macros, diagnostics, and provenance</li>
-<li><strong>Scanning</strong>: end-to-end header scanning via <code>parc::scan</code></li>
-<li>Source spans under <code>parc::span</code></li>
-<li>File/line reconstruction under <code>parc::loc</code></li>
-<li>Recursive visitor API under <code>parc::visit</code></li>
-<li>Tree-style debug printer under <code>parc::print</code></li>
+<li>preprocessing</li>
+<li>parsing</li>
+<li>parser recovery</li>
+<li>source extraction</li>
+<li>source diagnostics and provenance</li>
+<li>source IR</li>
+<li>header scanning</li>
+<li>AST traversal and debug support</li>
 </ul>
 <h2 id="what-parc-does-not-own"><a class="header" href="#what-parc-does-not-own">What PARC Does Not Own</a></h2>
 <ul>
-<li>native symbol inspection</li>
+<li>symbol inventories</li>
 <li>binary validation</li>
 <li>link-plan construction</li>
-<li>Rust lowering or emission</li>
+<li>Rust lowering or crate emission</li>
 </ul>
-<h2 id="data-flow"><a class="header" href="#data-flow">Data flow</a></h2>
-<pre><code class="language-text">C source / headers
-  -&gt; preprocessor (built-in or gcc/clang)
-  -&gt; PARC parser
+<h2 id="actual-data-flow"><a class="header" href="#actual-data-flow">Actual Data Flow</a></h2>
+<pre><code class="language-text">raw source / headers
+  -&gt; driver or built-in preprocessor
+  -&gt; parser AST
   -&gt; extraction
-  -&gt; SourcePackage (frontend contract)
-  -&gt; downstream (LINC, GERC)
+  -&gt; SourcePackage
+  -&gt; serialized source artifact or downstream harness
 </code></pre>
-<h2 id="module-layout"><a class="header" href="#module-layout">Module layout</a></h2>
+<p><code>scan</code> short-circuits that flow into one high-level operation. <code>parse</code> and
+<code>driver</code> expose earlier stages for syntax-level consumers.</p>
+<h2 id="module-layout"><a class="header" href="#module-layout">Module Layout</a></h2>
 <div class="table-wrapper">
 <table>
 <thead>
-<tr><th>Module</th><th>Purpose</th></tr>
+<tr><th>Module</th><th>What it is actually for</th></tr>
 </thead>
 <tbody>
-<tr><td><code>ir</code></td><td>Source-level IR: <code>SourcePackage</code>, <code>SourceType</code>, <code>SourceItem</code>, etc.</td></tr>
-<tr><td><code>extract</code></td><td>Declaration extraction from AST to IR</td></tr>
-<tr><td><code>scan</code></td><td>Header scanning (preprocess + parse + extract)</td></tr>
-<tr><td><code>intake</code></td><td>Preprocessed source intake</td></tr>
-<tr><td><code>driver</code></td><td>High-level API for parsing files via a C preprocessor</td></tr>
-<tr><td><code>preprocess</code></td><td>Built-in C preprocessor</td></tr>
-<tr><td><code>parse</code></td><td>Direct parsing of expressions, declarations, statements, translation units</td></tr>
-<tr><td><code>ast</code></td><td>AST definitions for declarations, expressions, statements, extensions</td></tr>
-<tr><td><code>visit</code></td><td>Recursive traversal API for AST consumers</td></tr>
-<tr><td><code>span</code></td><td>Byte offsets for parsed nodes</td></tr>
-<tr><td><code>loc</code></td><td>Mapping byte offsets back to source files and lines</td></tr>
-<tr><td><code>print</code></td><td>Debug-oriented tree printer for ASTs</td></tr>
+<tr><td><code>driver</code></td><td>file-oriented parse flow using an external preprocessor</td></tr>
+<tr><td><code>preprocess</code></td><td>built-in preprocessing, tokenization, include resolution</td></tr>
+<tr><td><code>parse</code></td><td>fragment parsing and direct translation-unit parsing from strings</td></tr>
+<tr><td><code>scan</code></td><td>end-to-end header scanning into <code>SourcePackage</code></td></tr>
+<tr><td><code>extract</code></td><td>AST-to-IR lowering and normalization</td></tr>
+<tr><td><code>ir</code></td><td>durable PARC-owned source contract</td></tr>
+<tr><td><code>ast</code></td><td>syntax tree for parser-facing consumers</td></tr>
+<tr><td><code>visit</code></td><td>traversal hooks over the AST</td></tr>
+<tr><td><code>span</code> / <code>loc</code></td><td>source-position helpers</td></tr>
+<tr><td><code>print</code></td><td>debug-oriented AST printer</td></tr>
+<tr><td><code>intake</code></td><td>already-preprocessed source intake helpers</td></tr>
 </tbody>
 </table>
 </div>
-<h2 id="artifact-boundary"><a class="header" href="#artifact-boundary">Artifact boundary</a></h2>
-<p><code>parc</code> owns source meaning only.</p>
-<p>The <code>SourcePackage</code> boundary is where <code>parc</code> stops:</p>
-<ul>
-<li><code>parc/src/**</code> must not depend on <code>linc</code> or <code>gec</code></li>
-<li>downstream translation belongs only in tests, examples, or external harnesses</li>
-<li><code>parc</code> does not own link or generation concerns</li>
-</ul>
-<h2 id="typical-use-cases"><a class="header" href="#typical-use-cases">Typical use cases</a></h2>
-<ul>
-<li>Extract function/struct/enum declarations from C headers</li>
-<li>Build a linter or analysis tool for C code</li>
-<li>Scan headers and produce a serializable source package</li>
-<li>Parse small fragments in tests</li>
-<li>Prototype refactoring or code-search tools</li>
-</ul>
-<h2 id="where-to-start"><a class="header" href="#where-to-start">Where to start</a></h2>
-<ul>
-<li>Read <a href="#getting-started">Getting Started</a> for basic setup</li>
-<li>Read <a href="#source-ir">Source IR</a> for the data contract</li>
-<li>Read <a href="#extraction">Extraction</a> for turning source into IR</li>
-<li>Read <a href="#header-scanning">Header Scanning</a> for end-to-end workflows</li>
-<li>Read <a href="#driver-api">Driver API</a> or <a href="#parser-api">Parser API</a> for parse-level access</li>
-<li>Read <a href="#ast-model">AST Model</a> before writing analysis code</li>
-</ul>
+<h2 id="boundary"><a class="header" href="#boundary">Boundary</a></h2>
+<p>The strongest consumer boundary is <code>parc::ir::SourcePackage</code>.</p>
+<p>That is the point where PARC stops owning the problem. Anything involving
+binary evidence or Rust generation is downstream from PARC, even if tests and
+harnesses compose those crates together elsewhere.</p>
+<h2 id="reading-strategy"><a class="header" href="#reading-strategy">Reading Strategy</a></h2>
+<p>Read the book in one of these orders:</p>
+<ol>
+<li>source-contract path:
+<code>Getting Started -&gt; Source IR -&gt; Extraction -&gt; Header Scanning -&gt; API Contract</code></li>
+<li>parser-facing path:
+<code>Getting Started -&gt; Driver API -&gt; Parser API -&gt; AST Model -&gt; Visitor Pattern</code></li>
+<li>contributor/debug path:
+<code>Project Layout -&gt; Testing -&gt; Diagnostics And Printing -&gt; Parser Boundaries</code></li>
+</ol>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
-<p>This chapter is the shortest path from raw C source or headers to a PARC-owned
-source artifact.</p>
+<p>This chapter is the shortest path from real source or headers to something that
+PARC actually produces today: either a parsed AST or a <code>SourcePackage</code>.</p>
 <p>Read <code>parc</code> as the source frontend of the toolchain:</p>
 <ul>
 <li><code>parc</code> owns preprocessing, parsing, extraction, and source diagnostics</li>
 <li><code>linc</code> owns link and binary evidence</li>
-<li><code>gec</code> owns Rust lowering and emitted build output</li>
+<li><code>gerc</code> owns Rust lowering and emitted build output</li>
 </ul>
-<p>The boundary rule is strict: <code>parc/src/**</code> must not depend on <code>linc</code> or <code>gec</code>,
+<p>The boundary rule is strict: <code>parc/src/**</code> must not depend on <code>linc</code> or <code>gerc</code>,
 and any cross-package translation belongs only in tests, examples, or external
 harnesses.</p>
 <h2 id="add-the-crate"><a class="header" href="#add-the-crate">Add the crate</a></h2>
 <pre><code class="language-toml">[dependencies]
-parc = { path = "../pac" }
+parc = { path = "../parc" }
 </code></pre>
 <h2 id="pick-the-right-api-first"><a class="header" href="#pick-the-right-api-first">Pick the right API first</a></h2>
-<p>Use <code>parc::driver</code> when you have a file on disk and want PARC to run a system preprocessor first.</p>
+<p>Use <code>parc::driver</code> when you have a file on disk and want PARC to run a system
+preprocessor first.</p>
 <pre class="playground"><code class="language-rust">use parc::driver::{parse, Config};
 
 fn main() -&gt; Result&lt;(), parc::driver::Error&gt; {
     let config = Config::default();
-    let parsed = parse(&amp;config, "examples/sample.c")?;
+    let parsed = parse(&amp;config, "src/tests/files/minimal.c")?;
 
     println!("preprocessed bytes: {}", parsed.source.len());
     println!("top-level items: {}", parsed.unit.0.len());
     Ok(())
 }</code></pre>
-<p>Use <code>parc::parse</code> when you already have source text in memory and want to parse a fragment directly.</p>
+<p>Use <code>parc::parse</code> when you already have source text in memory and want to parse
+a fragment directly.</p>
 <pre class="playground"><code class="language-rust">use parc::driver::Flavor;
 use parc::parse;
 
@@ -319,12 +319,12 @@ fn main() {
 let gnu = Config::with_gcc();
 let clang = Config::with_clang();
 <span class="boring">}</span></code></pre>
-<h2 id="first-useful-example"><a class="header" href="#first-useful-example">First useful example</a></h2>
-<p>This example parses a translation unit and counts top-level entries:</p>
+<h2 id="first-useful-parse-example"><a class="header" href="#first-useful-parse-example">First useful parse example</a></h2>
+<p>This example parses a translation unit through the normal driver path:</p>
 <pre class="playground"><code class="language-rust">use parc::driver::{parse, Config};
 
 fn main() -&gt; Result&lt;(), parc::driver::Error&gt; {
-    let parsed = parse(&amp;Config::default(), "examples/header.h")?;
+    let parsed = parse(&amp;Config::default(), "src/tests/files/minimal.c")?;
 
     for (i, item) in parsed.unit.0.iter().enumerate() {
         println!("item #{i}: {:?}", item.node);
@@ -332,6 +332,19 @@ fn main() -&gt; Result&lt;(), parc::driver::Error&gt; {
 
     Ok(())
 }</code></pre>
+<h2 id="first-useful-scan-example"><a class="header" href="#first-useful-scan-example">First useful scan example</a></h2>
+<p>If what you really want is source IR rather than a raw AST, start with
+<code>parc::scan</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use parc::scan::{scan_headers, ScanConfig};
+
+let config = ScanConfig::new().entry_header("demo.h");
+let result = scan_headers(&amp;config).unwrap();
+
+println!("items: {}", result.package.items.len());
+<span class="boring">}</span></code></pre>
+<p>This is the closest thing PARC has to a “frontend product” API.</p>
 <h2 id="first-fragment-example"><a class="header" href="#first-fragment-example">First fragment example</a></h2>
 <p>If you only need one declaration or statement, the direct parser API is faster to wire in:</p>
 <pre class="playground"><code class="language-rust">use parc::driver::Flavor;
@@ -346,8 +359,9 @@ fn main() {
 }</code></pre>
 <h2 id="what-to-read-next"><a class="header" href="#what-to-read-next">What to read next</a></h2>
 <ul>
-<li><a href="#common-workflows">Common Workflows</a> for choosing between <code>driver</code>, <code>parse_preprocessed</code>, and <code>parse</code></li>
+<li><a href="#common-workflows">Common Workflows</a> for choosing between <code>scan</code>, <code>driver</code>, <code>parse_preprocessed</code>, and <code>parse</code></li>
 <li><a href="#driver-api">Driver API</a> for preprocessing and file-based parsing</li>
+<li><a href="#header-scanning">Header Scanning</a> for source-contract-first workflows</li>
 <li><a href="#parser-api">Parser API</a> for fragment parsing</li>
 </ul>
 <h2 id="architectural-boundary"><a class="header" href="#architectural-boundary">Architectural boundary</a></h2>
@@ -368,11 +382,11 @@ fn main() {
 <li>Rust code generation</li>
 </ul>
 <p>In this repository, cross-package composition should not live in <code>parc</code> library
-code. <code>linc</code> and <code>gec</code> should consume <code>parc</code> output only from tests, examples,
+code. <code>linc</code> and <code>gerc</code> should consume <code>parc</code> output only from tests, examples,
 or external harnesses.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="common-workflows"><a class="header" href="#common-workflows">Common Workflows</a></h1>
-<p>Most confusion with PAC comes from choosing the wrong entry point. This chapter maps common tasks to
+<p>Most confusion with PARC comes from choosing the wrong entry point. This chapter maps common tasks to
 the right API.</p>
 <p>Read the workflows in this order:</p>
 <ol>
@@ -387,6 +401,7 @@ the right API.</p>
 <tr><th>Situation</th><th>API</th></tr>
 </thead>
 <tbody>
+<tr><td>Turn headers into <code>SourcePackage</code></td><td><code>scan::scan_headers</code></td></tr>
 <tr><td>Parse a <code>.c</code> or <code>.h</code> file with includes and macros</td><td><code>driver::parse</code></td></tr>
 <tr><td>Parse already-preprocessed text from memory</td><td><code>driver::parse_preprocessed</code></td></tr>
 <tr><td>Parse one expression, declaration, statement, or translation unit string</td><td><code>parse::*</code></td></tr>
@@ -395,6 +410,18 @@ the right API.</p>
 </tbody>
 </table>
 </div>
+<h2 id="scan-headers-into-source-ir"><a class="header" href="#scan-headers-into-source-ir">Scan headers into source IR</a></h2>
+<p>Use this when your real target is the PARC source contract rather than the raw
+syntax tree.</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use parc::scan::{scan_headers, ScanConfig};
+
+let result = scan_headers(&amp;ScanConfig::new().entry_header("demo.h")).unwrap();
+println!("diagnostics: {}", result.package.diagnostics.len());
+<span class="boring">}</span></code></pre>
+<p>This is the best fit for downstream toolchains that want declarations,
+provenance, macros, and diagnostics in one package.</p>
 <h2 id="parse-a-real-file"><a class="header" href="#parse-a-real-file">Parse a real file</a></h2>
 <p>Use this when your source depends on <code>#include</code>, <code>#define</code>, or compiler predefined macros.</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
@@ -410,7 +437,7 @@ let parsed = parse(&amp;config, "src/main.c")?;
 <li><code>parsed.unit</code>: the AST root</li>
 </ul>
 <h2 id="parse-preprocessed-text"><a class="header" href="#parse-preprocessed-text">Parse preprocessed text</a></h2>
-<p>Use this when another tool already ran preprocessing and you only want PAC to parse.</p>
+<p>Use this when another tool already ran preprocessing and you only want PARC to parse.</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>use parc::driver::{parse_preprocessed, Config};
@@ -500,7 +527,8 @@ println!("{}", out);
 </span><span class="boring">}</span></code></pre>
 <h2 id="rule-of-thumb"><a class="header" href="#rule-of-thumb">Rule of thumb</a></h2>
 <ul>
-<li>If preprocessing matters, start with <code>driver</code>.</li>
+<li>If you want <code>SourcePackage</code>, start with <code>scan</code>.</li>
+<li>If preprocessing matters and you still want the AST, start with <code>driver</code>.</li>
 <li>If you already have plain text in memory, start with <code>parse</code>.</li>
 <li>If you need diagnostics tied back to original files, keep the preprocessed source string.</li>
 <li>If another crate needs PARC output, stop at <code>SourcePackage</code> and translate it outside <code>parc/src/**</code>.</li>
@@ -531,7 +559,7 @@ pub struct Parse {
 <span class="boring">}</span></code></pre>
 <p>The return value matters:</p>
 <ul>
-<li><code>source</code> is the preprocessed source PAC actually parsed</li>
+<li><code>source</code> is the preprocessed source PARC actually parsed</li>
 <li><code>unit</code> is the AST root</li>
 </ul>
 <h2 id="basic-file-parsing"><a class="header" href="#basic-file-parsing">Basic file parsing</a></h2>
@@ -635,7 +663,7 @@ match parse_preprocessed(&amp;Config::default(), broken) {
 <p>If the preprocessed source contains line markers, <code>SyntaxError::get_location()</code> can reconstruct the
 original file and include stack.</p>
 <h2 id="built-in-preprocessor"><a class="header" href="#built-in-preprocessor">Built-in preprocessor</a></h2>
-<p>PAC includes a built-in C preprocessor that eliminates the need for an external
+<p>PARC includes a built-in C preprocessor that eliminates the need for an external
 <code>gcc</code> or <code>clang</code> binary. Use <code>parse_builtin</code> instead of <code>parse</code>:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -681,7 +709,7 @@ macros and macros from included headers.</p>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="built-in-preprocessor-1"><a class="header" href="#built-in-preprocessor-1">Built-in Preprocessor</a></h1>
-<p>PAC includes a complete built-in C preprocessor in the <code>parc::preprocess</code> module.
+<p>PARC includes a complete built-in C preprocessor in the <code>parc::preprocess</code> module.
 This eliminates the runtime dependency on <code>gcc</code> or <code>clang</code> for preprocessing.</p>
 <h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
 <p>The preprocessor is split into focused modules:</p>
@@ -958,8 +986,9 @@ assert!(pkg.source_path.is_some());
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="header-scanning"><a class="header" href="#header-scanning">Header Scanning</a></h1>
-<p>The <code>parc::scan</code> module provides end-to-end header scanning: preprocess
-C headers and extract a <code>SourcePackage</code> in one step.</p>
+<p><code>parc::scan</code> is the highest-level PARC API for people who want the source
+contract, not just the AST. It preprocesses headers, parses them, extracts
+items, and returns a <code>SourcePackage</code> plus the preprocessed source text.</p>
 <h2 id="quick-start-2"><a class="header" href="#quick-start-2">Quick Start</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -974,6 +1003,17 @@ let config = ScanConfig::new()
 let result = scan_headers(&amp;config).unwrap();
 let pkg = result.package;
 <span class="boring">}</span></code></pre>
+<h2 id="what-scan-really-owns"><a class="header" href="#what-scan-really-owns">What <code>scan</code> really owns</a></h2>
+<p>The scan path currently owns all of these steps:</p>
+<ol>
+<li>choose builtin or external preprocessing</li>
+<li>build the preprocessing environment</li>
+<li>parse the preprocessed translation unit</li>
+<li>extract declarations into <code>parc::ir</code></li>
+<li>attach input metadata and diagnostics</li>
+<li>optionally resolve typedef chains in the produced package</li>
+</ol>
+<p>That makes it the closest thing PARC has to a “source artifact producer”.</p>
 <h2 id="scanconfig"><a class="header" href="#scanconfig">ScanConfig</a></h2>
 <p>Builder for scan configuration:</p>
 <div class="table-wrapper">
@@ -997,8 +1037,9 @@ let pkg = result.package;
 <p>Uses <code>gcc -E</code> or <code>clang -E</code> to preprocess headers. Requires the
 compiler to be installed. Supports all system headers.</p>
 <h3 id="built-in"><a class="header" href="#built-in">Built-in</a></h3>
-<p>Uses <code>parc::preprocess</code> for self-contained headers that don’t need
-system includes. No external compiler required.</p>
+<p>Uses <code>parc::preprocess</code> directly. This is useful for controlled fixtures and
+repo-local tests. It is not a promise that the built-in preprocessor already
+matches every hostile system-header stack.</p>
 <h2 id="scanresult"><a class="header" href="#scanresult">ScanResult</a></h2>
 <p>The scan produces:</p>
 <ul>
@@ -1018,6 +1059,15 @@ let input = PreprocessedInput::from_string("int foo(void);")
 
 let pkg = input.extract();
 <span class="boring">}</span></code></pre>
+<h2 id="what-to-expect-from-failures"><a class="header" href="#what-to-expect-from-failures">What to expect from failures</a></h2>
+<p><code>scan_headers()</code> can fail early on preprocessing setup problems, and it can
+also return a package with parse diagnostics if preprocessing succeeded but the
+source could not be fully parsed.</p>
+<p>That split is intentional:</p>
+<ul>
+<li>operational setup failures are <code>Err(...)</code></li>
+<li>source-level failures become <code>package.diagnostics</code> when possible</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="parser-api"><a class="header" href="#parser-api">Parser API</a></h1>
 <p>The <code>parse</code> module exposes direct parsing functions that work on in-memory strings. Unlike
@@ -1129,7 +1179,7 @@ assert!(parse::expression(gnu_expr, Flavor::StdC11).is_err());
 <p>Use <code>driver</code> instead when preprocessing is part of the problem.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="ast-model"><a class="header" href="#ast-model">AST Model</a></h1>
-<p>The <code>ast</code> module contains the syntax tree PAC produces after parsing. Most types track the C11
+<p>The <code>ast</code> module contains the syntax tree PARC produces after parsing. Most types track the C11
 grammar closely, with additional variants for supported GNU and Clang extensions.</p>
 <h2 id="core-wrapper-types"><a class="header" href="#core-wrapper-types">Core wrapper types</a></h2>
 <p>Many parsed values are wrapped in <code>Node&lt;T&gt;</code>:</p>
@@ -1189,7 +1239,7 @@ grammar closely, with additional variants for supported GNU and Clang extensions
 <li>derived layers such as pointers, arrays, and functions</li>
 <li>extension nodes</li>
 </ul>
-<p>That design lets PAC represent C declarators without flattening away their structure.</p>
+<p>That design lets PARC represent C declarators without flattening away their structure.</p>
 <p>Examples:</p>
 <ul>
 <li><code>int *p;</code></li>
@@ -1274,7 +1324,7 @@ everything into one generic node list.</p>
 <li><code>typeof</code></li>
 </ul>
 <h2 id="extension-nodes"><a class="header" href="#extension-nodes">Extension nodes</a></h2>
-<p>PAC includes explicit AST nodes for extensions instead of hiding them:</p>
+<p>PARC includes explicit AST nodes for extensions instead of hiding them:</p>
 <ul>
 <li><code>Extension::Attribute</code></li>
 <li><code>Extension::AsmLabel</code></li>
@@ -1285,7 +1335,7 @@ everything into one generic node list.</p>
 </ul>
 <p>That makes it practical to write tools that either support or reject extension syntax intentionally.</p>
 <h2 id="reading-the-ast-effectively"><a class="header" href="#reading-the-ast-effectively">Reading the AST effectively</a></h2>
-<p>When working with PAC, a useful order is:</p>
+<p>When working with PARC, a useful order is:</p>
 <ol>
 <li>Start at <code>TranslationUnit</code></li>
 <li>Split declarations from function definitions</li>
@@ -1393,7 +1443,7 @@ println!("functions: {}", counter.count);
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="location-tracking"><a class="header" href="#location-tracking">Location Tracking</a></h1>
-<p>PAC tracks source positions in two related ways:</p>
+<p>PARC tracks source positions in two related ways:</p>
 <ul>
 <li><code>Span</code> stores byte offsets into the parsed input</li>
 <li><code>loc</code> maps byte offsets in preprocessed source back to original files and lines</li>
@@ -1480,7 +1530,7 @@ if let Some(first) = parsed.unit.0.first() {
 </ul>
 <p>This is the best starting point for user-facing diagnostics.</p>
 <h2 id="caveat-byte-offsets-not-columns-in-utf-16"><a class="header" href="#caveat-byte-offsets-not-columns-in-utf-16">Caveat: byte offsets, not columns in UTF-16</a></h2>
-<p>PAC stores Rust byte offsets. That is usually what you want for source processing, but if you are
+<p>PARC stores Rust byte offsets. That is usually what you want for source processing, but if you are
 feeding results into another tool that expects a different coordinate system, convert explicitly.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="testing"><a class="header" href="#testing">Testing</a></h1>
@@ -1492,10 +1542,17 @@ three things:</p>
 <li>cross-package composition can start from <code>parc</code> artifacts without relying on
 <code>parc</code> internals</li>
 </ul>
-<p>PAC has two broad testing layers:</p>
+<p>PARC has two broad testing layers:</p>
 <ul>
 <li>direct parser/API tests in <code>src/tests</code></li>
 <li>corpus-style fixtures under <code>test/reftests/</code> and, when present, <code>test/full_apps/</code></li>
+</ul>
+<p>It also now has explicit grouped failure suites:</p>
+<ul>
+<li><code>failure_matrix_preprocess</code> for scan/preprocessor hard failures and
+conservative scan outcomes</li>
+<li><code>failure_matrix_source</code> for source-parse hard failures, resilient recovery,
+and diagnostic-preserving extraction</li>
 </ul>
 <h2 id="basic-commands"><a class="header" href="#basic-commands">Basic commands</a></h2>
 <p>The repository <code>Makefile</code> wraps the normal Cargo flow:</p>
@@ -1507,6 +1564,17 @@ make test
 <li><code>cargo build --release</code></li>
 <li><code>cargo test</code></li>
 </ul>
+<h2 id="hermeticity-split"><a class="header" href="#hermeticity-split">Hermeticity split</a></h2>
+<p>The large PARC surfaces should be read in three groups:</p>
+<ul>
+<li>always-on hermetic baselines</li>
+<li>host-dependent but high-value ladders</li>
+<li>hostile or conservative-failure surfaces</li>
+</ul>
+<p>The hermetic baselines should remain the default confidence floor. The
+host-dependent ladders should strengthen confidence when available. The failure
+surfaces should prove that PARC stays diagnostic and deterministic when it
+cannot fully model a header family yet.</p>
 <h2 id="contract-tests"><a class="header" href="#contract-tests">Contract tests</a></h2>
 <p>Contract tests are the tests a downstream toolchain should treat as the main
 statement of support:</p>
@@ -1601,7 +1669,7 @@ structs, extreme enum values, forward-then-define patterns, etc.</p>
 Uses both strict parsing (error expected) and resilient parsing (recovery expected).</p>
 <h2 id="contract-tests-1"><a class="header" href="#contract-tests-1">Contract tests</a></h2>
 <p><code>src/tests/contract.rs</code> and <code>src/tests/consumability.rs</code> verify that the <code>SourcePackage</code>
-contract is sufficient for downstream consumers. These test iteration patterns, type
+contract is sufficient for downstream consumers. These tests cover iteration patterns, type
 navigation, serialization, filtering, merging, and programmatic construction.</p>
 <h2 id="differential-tests"><a class="header" href="#differential-tests">Differential tests</a></h2>
 <p><code>src/tests/differential.rs</code> documents the known differences between parc extraction and
@@ -1647,7 +1715,7 @@ conservative</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="diagnostics-and-printing"><a class="header" href="#diagnostics-and-printing">Diagnostics And Printing</a></h1>
-<p>PAC includes two pieces that are especially useful when building tools on top of the parser:</p>
+<p>PARC includes two pieces that are especially useful when building tools on top of the parser:</p>
 <ul>
 <li>detailed parse errors</li>
 <li>a tree printer for AST inspection</li>
@@ -1716,7 +1784,7 @@ println!("{}", out);
 </span><span class="boring">}</span></code></pre>
 <p>The printer is ideal when:</p>
 <ul>
-<li>learning how PAC models a syntax form</li>
+<li>learning how PARC models a syntax form</li>
 <li>updating reftests</li>
 <li>debugging traversal code</li>
 </ul>
@@ -1864,11 +1932,12 @@ source-level semantic extraction.</p>
 <li>consume the <code>SourcePackage</code> IR from <code>ir</code></li>
 <li>use <code>visit</code>, <code>span</code>, and <code>loc</code> to analyze AST-level details if needed</li>
 </ol>
-<p>Downstream consumers should depend on <code>parc::ir</code>, not on <code>parc::ast</code> directly.</p>
+<p>Downstream consumers that want source contracts should depend on <code>parc::ir</code>,
+not on <code>parc::ast</code> directly.</p>
 <p>More importantly for this repository:</p>
 <ul>
-<li><code>parc</code> library code must not depend on <code>linc</code> or <code>gec</code></li>
-<li><code>linc</code> and <code>gec</code> should not require <code>parc</code> as a library dependency in their
+<li><code>parc</code> library code must not depend on <code>linc</code> or <code>gerc</code></li>
+<li><code>linc</code> and <code>gerc</code> should not require <code>parc</code> as a library dependency in their
 production code paths</li>
 <li>integration should happen through PARC-owned artifacts in tests/examples or
 external harnesses</li>
@@ -1917,7 +1986,7 @@ implementation details rather than the intended library boundary.</p>
 <li>use <code>visit</code> for traversal instead of hand-rolling recursive descent everywhere</li>
 <li>use <code>span</code> and <code>loc</code> for diagnostics rather than guessing source positions</li>
 <li>do not rely on exact error-message strings for durable control flow</li>
-<li>do not treat PAC as semantic analysis, type checking, or ABI proof</li>
+<li>do not treat PARC as semantic analysis, type checking, or ABI proof</li>
 <li>if another crate needs PARC output, serialize the PARC-owned artifact and
 translate it outside library code</li>
 </ol>
@@ -1937,6 +2006,14 @@ translate it outside library code</li>
 <li>the span/location model under <code>span</code> and <code>loc</code></li>
 </ul>
 <p>Those are the surfaces the rest of the book assumes consumers will use.</p>
+<p>The important correction is this: PARC has two practical contracts today, not
+one:</p>
+<ol>
+<li>a source-contract path centered on <code>ir</code>, <code>extract</code>, and <code>scan</code></li>
+<li>a parser-facing path centered on <code>driver</code>, <code>parse</code>, <code>ast</code>, and <code>visit</code></li>
+</ol>
+<p>The docs should not pretend the AST side does not exist, because the crate
+very much exposes it.</p>
 <h2 id="what-is-intentionally-weaker"><a class="header" href="#what-is-intentionally-weaker">What is intentionally weaker</a></h2>
 <p>The following should be treated as less stable than the core parsing surface:</p>
 <ul>
@@ -1986,7 +2063,7 @@ println!("items: {}", parsed.unit.0.len());
 <li>macros matter</li>
 <li>compiler predefined types or macros matter</li>
 </ul>
-<p>The result gives you both the AST and the exact preprocessed source PAC saw.</p>
+<p>The result gives you both the AST and the exact preprocessed source PARC saw.</p>
 <h2 id="workflow-2-parse-a-preprocessed-snapshot"><a class="header" href="#workflow-2-parse-a-preprocessed-snapshot">Workflow 2: Parse A Preprocessed Snapshot</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -2045,7 +2122,7 @@ counter.visit_translation_unit(&amp;parsed.unit);
 println!("return statements: {}", counter.count);
 <span class="boring">Ok::&lt;(), parc::driver::Error&gt;(())
 </span><span class="boring">}</span></code></pre>
-<p>This is the normal PAC analyzer pattern:</p>
+<p>This is the normal PARC analyzer pattern:</p>
 <ol>
 <li>parse</li>
 <li>traverse</li>
@@ -2096,9 +2173,9 @@ println!("{}", out);
 <p>That keeps parser changes concrete and reviewable.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="error-surface"><a class="header" href="#error-surface">Error Surface</a></h1>
-<p>This chapter describes the error model PAC exposes today.</p>
+<p>This chapter describes the error model PARC exposes today.</p>
 <h2 id="two-layers-of-errors"><a class="header" href="#two-layers-of-errors">Two layers of errors</a></h2>
-<p>PAC has two main error surfaces:</p>
+<p>PARC has two main error surfaces:</p>
 <ol>
 <li>direct parser errors from <code>parse</code></li>
 <li>driver errors from <code>driver</code></li>
@@ -2136,8 +2213,8 @@ println!("{}", out);
 </ul>
 <p>This split is a real contract boundary:</p>
 <ul>
-<li>preprocessor failures mean PAC never reached parsing</li>
-<li>syntax failures mean preprocessing succeeded and PAC failed on the resulting text</li>
+<li>preprocessor failures mean PARC never reached parsing</li>
+<li>syntax failures mean preprocessing succeeded and PARC failed on the resulting text</li>
 </ul>
 <h2 id="syntaxerror"><a class="header" href="#syntaxerror"><code>SyntaxError</code></a></h2>
 <p><code>driver::SyntaxError</code> contains:</p>
@@ -2226,10 +2303,10 @@ let tu = parse::translation_unit_resilient(source, Flavor::GnuC11);
 <li>a typed taxonomy for every grammar category of failure</li>
 <li>warning channels separate from parse success</li>
 </ul>
-<p>PAC’s errors are syntax-oriented rather than compiler-like.</p>
+<p>PARC’s errors are syntax-oriented rather than compiler-like.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="flavor-and-extension-support"><a class="header" href="#flavor-and-extension-support">Flavor And Extension Support</a></h1>
-<p>PAC supports three language flavors and several extension families.</p>
+<p>PARC supports three language flavors and several extension families.</p>
 <p>This chapter records what that means in practice.</p>
 <h2 id="flavors"><a class="header" href="#flavors">Flavors</a></h2>
 <div class="table-wrapper">
@@ -2269,7 +2346,7 @@ let tu = parse::translation_unit_resilient(source, Flavor::GnuC11);
 <p>In practice, if the source is GCC-flavored or Linux-kernel-like, <code>GnuC11</code> is usually the right
 starting point.</p>
 <h2 id="clang-oriented-support"><a class="header" href="#clang-oriented-support">Clang-oriented support</a></h2>
-<p>PAC also models Clang-specific or Clang-common syntax including:</p>
+<p>PARC also models Clang-specific or Clang-common syntax including:</p>
 <ul>
 <li>Clang availability attributes</li>
 <li>the <code>ClangC11</code> flavor path in <code>driver</code> and <code>parse</code></li>
@@ -2277,7 +2354,7 @@ starting point.</p>
 <p>If your preprocessing and syntax assumptions are built around Clang, use <code>Config::with_clang()</code> or
 <code>Flavor::ClangC11</code>.</p>
 <h2 id="c23-keyword-support"><a class="header" href="#c23-keyword-support">C23 keyword support</a></h2>
-<p>PAC accepts the following C23 keywords in all flavors, because modern compilers (GCC 15+) emit them
+<p>PARC accepts the following C23 keywords in all flavors, because modern compilers (GCC 15+) emit them
 in preprocessed output by default:</p>
 <div class="table-wrapper">
 <table>
@@ -2302,7 +2379,7 @@ in preprocessed output by default:</p>
 </table>
 </div>
 <h2 id="gcc-extension-types"><a class="header" href="#gcc-extension-types">GCC extension types</a></h2>
-<p>PAC recognizes these GCC extension types in GNU mode:</p>
+<p>PARC recognizes these GCC extension types in GNU mode:</p>
 <div class="table-wrapper">
 <table>
 <thead>
@@ -2331,14 +2408,14 @@ in preprocessed output by default:</p>
 </ol>
 <h2 id="what-this-chapter-does-not-claim"><a class="header" href="#what-this-chapter-does-not-claim">What this chapter does not claim</a></h2>
 <p>This chapter does not claim exhaustive support for every extension accepted by GCC or Clang.</p>
-<p>It does claim that PAC has explicit support for several important extension families and that the
+<p>It does claim that PARC has explicit support for several important extension families and that the
 flavor setting is part of the API contract for using them correctly.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="unsupported-cases"><a class="header" href="#unsupported-cases">Unsupported Cases</a></h1>
 <p>This chapter records the important unsupported or intentionally out-of-scope areas.</p>
 <p>The goal is to prevent downstream users from mistaking absence of detail for implicit support.</p>
 <h2 id="semantic-analysis"><a class="header" href="#semantic-analysis">Semantic analysis</a></h2>
-<p>PAC does not provide:</p>
+<p>PARC does not provide:</p>
 <ul>
 <li>full name resolution</li>
 <li>type checking</li>
@@ -2348,15 +2425,15 @@ flavor setting is part of the API contract for using them correctly.</p>
 </ul>
 <p>It is a parser with source-structure support, not a complete compiler frontend.</p>
 <h2 id="preprocessing"><a class="header" href="#preprocessing">Preprocessing</a></h2>
-<p>PAC does not implement a standalone C preprocessor in the <code>driver</code> path.</p>
+<p>PARC does not implement a standalone C preprocessor in the <code>driver</code> path.</p>
 <p>Instead it depends on an external preprocessor command such as:</p>
 <ul>
 <li><code>gcc -E</code></li>
 <li><code>clang -E</code></li>
 </ul>
-<p>That means PAC does not try to normalize every compiler’s preprocessing behavior internally.</p>
+<p>That means PARC does not try to normalize every compiler’s preprocessing behavior internally.</p>
 <h2 id="extension-completeness"><a class="header" href="#extension-completeness">Extension completeness</a></h2>
-<p>PAC supports several GNU and Clang extensions, but the project does not promise complete parity
+<p>PARC supports several GNU and Clang extensions, but the project does not promise complete parity
 with every extension accepted by modern GCC or Clang releases.</p>
 <p>Downstream tools should not assume:</p>
 <ul>
@@ -2365,11 +2442,11 @@ with every extension accepted by modern GCC or Clang releases.</p>
 <li>identical acceptance behavior across all compiler-version-specific syntax edges</li>
 </ul>
 <h2 id="macro-inventory-and-expansion-modeling"><a class="header" href="#macro-inventory-and-expansion-modeling">Macro inventory and expansion modeling</a></h2>
-<p>PAC parses the post-preprocessing result. It does not expose a first-class macro inventory or a
+<p>PARC parses the post-preprocessing result. It does not expose a first-class macro inventory or a
 stable semantic model of macro definitions as its own output contract.</p>
-<p>If you need macro capture as data, that is outside PAC’s current scope.</p>
+<p>If you need macro capture as data, that is outside PARC’s current scope.</p>
 <h2 id="translation-unit-semantics"><a class="header" href="#translation-unit-semantics">Translation-unit semantics</a></h2>
-<p>PAC can parse translation units, but it does not guarantee:</p>
+<p>PARC can parse translation units, but it does not guarantee:</p>
 <ul>
 <li>cross-file symbol resolution</li>
 <li>duplicate-definition analysis as a stable feature</li>
@@ -2378,7 +2455,7 @@ stable semantic model of macro definitions as its own output contract.</p>
 </ul>
 <p>Those tasks belong to later analysis layers, not the parser itself.</p>
 <h2 id="diagnostics-depth"><a class="header" href="#diagnostics-depth">Diagnostics depth</a></h2>
-<p>PAC does not currently provide:</p>
+<p>PARC does not currently provide:</p>
 <ul>
 <li>warning classes</li>
 <li>fix-it suggestions</li>
@@ -2397,7 +2474,7 @@ stable semantic model of macro definitions as its own output contract.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="reproducibility"><a class="header" href="#reproducibility">Reproducibility</a></h1>
 <p>Parsing C is sensitive to the exact preprocessor environment.</p>
-<p>This chapter documents how to keep PAC-based workflows reproducible.</p>
+<p>This chapter documents how to keep PARC-based workflows reproducible.</p>
 <h2 id="main-reproducibility-risks"><a class="header" href="#main-reproducibility-risks">Main reproducibility risks</a></h2>
 <p>The biggest sources of drift are:</p>
 <ul>
@@ -2421,7 +2498,7 @@ stable semantic model of macro definitions as its own output contract.</p>
 <ol>
 <li>capture the preprocessed output</li>
 <li>switch the failing test to <code>parse_preprocessed</code></li>
-<li>debug PAC against the stable snapshot</li>
+<li>debug PARC against the stable snapshot</li>
 </ol>
 <p>That separates:</p>
 <ul>
@@ -2432,7 +2509,7 @@ stable semantic model of macro definitions as its own output contract.</p>
 <p>The reftest harness already encourages deterministic expectations by comparing against printed AST
 output. For parser bugs that depend on preprocessing, a pinned <code>.i</code> file is often even better.</p>
 <h2 id="consumer-guidance-1"><a class="header" href="#consumer-guidance-1">Consumer guidance</a></h2>
-<p>If PAC is part of a larger pipeline, keep the following recorded somewhere durable:</p>
+<p>If PARC is part of a larger pipeline, keep the following recorded somewhere durable:</p>
 <ul>
 <li>preprocessor executable</li>
 <li>preprocessor arguments</li>
@@ -2447,11 +2524,11 @@ output. For parser bugs that depend on preprocessing, a pinned <code>.i</code> f
 <h2 id="pattern-1-separate-parsing-from-analysis"><a class="header" href="#pattern-1-separate-parsing-from-analysis">Pattern 1: Separate parsing from analysis</a></h2>
 <p>A durable integration pattern is:</p>
 <ol>
-<li>parse with PAC</li>
+<li>parse with PARC</li>
 <li>convert the AST into your own analysis model if needed</li>
 <li>run later semantic or policy logic on that model</li>
 </ol>
-<p>This avoids coupling too much of your tool to every detail of PAC’s raw AST layout.</p>
+<p>This avoids coupling too much of your tool to every detail of PARC’s raw AST layout.</p>
 <h2 id="pattern-2-preserve-preprocessed-source-for-diagnostics"><a class="header" href="#pattern-2-preserve-preprocessed-source-for-diagnostics">Pattern 2: Preserve preprocessed source for diagnostics</a></h2>
 <p>If you use <code>driver</code>, keep <code>Parse::source</code> around as long as you may need diagnostics.</p>
 <p>That enables:</p>
@@ -2577,7 +2654,7 @@ library internals.</p>
 </ol>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="support-tiers"><a class="header" href="#support-tiers">Support Tiers</a></h1>
-<p>This chapter records a practical support posture for PAC’s public surface.</p>
+<p>This chapter records a practical support posture for PARC’s public surface.</p>
 <p>It is meant to help downstream users judge which parts of the crate are the safest long-term
 integration points.</p>
 <h2 id="tier-1-core-consumer-surface"><a class="header" href="#tier-1-core-consumer-surface">Tier 1: Core Consumer Surface</a></h2>
@@ -2610,14 +2687,93 @@ data over formatted strings.</p>
 </ul>
 <p>These details may evolve as the parser changes.</p>
 <h2 id="consumer-guidance-2"><a class="header" href="#consumer-guidance-2">Consumer guidance</a></h2>
-<p>If you are building external tooling on top of PAC, bias toward Tier 1 surfaces first.
+<p>If you are building external tooling on top of PARC, bias toward Tier 1 surfaces first.
 Reach for Tier 2 when you need diagnostics or debugging support.
-Treat Tier 3 as implementation detail unless you are actively contributing to PAC itself.</p>
+Treat Tier 3 as implementation detail unless you are actively contributing to PARC itself.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="hardening-matrix"><a class="header" href="#hardening-matrix">Hardening Matrix</a></h1>
+<p>This chapter translates the large PARC test surface into an explicit hardening
+ladder.</p>
+<p>The important point is not “how many tests exist”. The important point is which
+surfaces are carrying confidence for real-header parsing, preprocessing, and
+source extraction.</p>
+<h2 id="how-to-read-the-matrix"><a class="header" href="#how-to-read-the-matrix">How To Read The Matrix</a></h2>
+<p>Read each surface on three axes:</p>
+<ul>
+<li>hermetic or host-dependent</li>
+<li>parser-only versus scan-first</li>
+<li>success path versus conservative failure path</li>
+</ul>
+<p>A surface is stronger when it is:</p>
+<ul>
+<li>hermetic</li>
+<li>scan-first</li>
+<li>repeated deterministically</li>
+<li>tied to a realistic system or library family</li>
+</ul>
+<h2 id="tier-1-hermetic-canonical-baselines"><a class="header" href="#tier-1-hermetic-canonical-baselines">Tier 1: Hermetic Canonical Baselines</a></h2>
+<p>These are the first surfaces that should stay green on every machine:</p>
+<ul>
+<li>vendored musl <code>stdint</code></li>
+<li>vendored zlib</li>
+<li>vendored libpng builtin-preprocessor success path</li>
+<li>parser and extraction corpus fixtures under <code>src/tests/**</code></li>
+</ul>
+<p>These matter because they exercise:</p>
+<ul>
+<li>multi-header scanning</li>
+<li>macro and include handling</li>
+<li>extraction into <code>SourcePackage</code></li>
+<li>deterministic behavior without relying on the host toolchain layout</li>
+</ul>
+<h2 id="tier-2-host-dependent-canonical-ladders"><a class="header" href="#tier-2-host-dependent-canonical-ladders">Tier 2: Host-Dependent Canonical Ladders</a></h2>
+<p>These should stay green on developer and CI hosts where the headers exist, but
+they are not the first portability baseline:</p>
+<ul>
+<li>OpenSSL public wrapper extraction</li>
+<li>combined Linux event-loop wrapper extraction</li>
+<li>larger libc and system-header clusters</li>
+</ul>
+<p>These surfaces matter because they are closer to the “real ugly header world”
+target than the small synthetic fixtures.</p>
+<h2 id="tier-3-hostile-and-conservative-failure-surfaces"><a class="header" href="#tier-3-hostile-and-conservative-failure-surfaces">Tier 3: Hostile And Conservative-Failure Surfaces</a></h2>
+<p>These prove that PARC is refusing or degrading honestly instead of pretending to
+understand everything:</p>
+<ul>
+<li>hostile declaration fixtures</li>
+<li>recovery fixtures</li>
+<li>unsupported or partial declaration families that still emit diagnostics and
+partial metadata</li>
+</ul>
+<p>For release purposes, these failures are good when they are:</p>
+<ul>
+<li>deterministic</li>
+<li>diagnostic</li>
+<li>documented</li>
+</ul>
+<h2 id="determinism-anchors"><a class="header" href="#determinism-anchors">Determinism Anchors</a></h2>
+<p>The most important repeat-run anchors right now are:</p>
+<ul>
+<li>vendored musl scan</li>
+<li>vendored zlib scan</li>
+<li>vendored libpng scan</li>
+<li>OpenSSL wrapper extraction</li>
+<li>combined Linux event-loop wrapper extraction</li>
+</ul>
+<p>If any of those become unstable, the release posture should drop immediately.</p>
+<h2 id="what-this-matrix-does-not-mean"><a class="header" href="#what-this-matrix-does-not-mean">What This Matrix Does Not Mean</a></h2>
+<p>This matrix does not mean:</p>
+<ul>
+<li>every random system library now parses perfectly</li>
+<li>every preprocessor corner is solved</li>
+<li>every large host-dependent surface is equally mature</li>
+</ul>
+<p>It means the current confidence ladder is explicit instead of implied.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="parser-boundaries"><a class="header" href="#parser-boundaries">Parser Boundaries</a></h1>
-<p>This chapter explains where PAC starts and where it intentionally stops.</p>
-<h2 id="pac-owns-syntax-parsing"><a class="header" href="#pac-owns-syntax-parsing">PAC owns syntax parsing</a></h2>
-<p>PAC is responsible for:</p>
+<p>This chapter explains where PARC starts and where it intentionally stops.</p>
+<h2 id="parc-owns-syntax-parsing"><a class="header" href="#parc-owns-syntax-parsing">PARC owns syntax parsing</a></h2>
+<p>PARC is responsible for:</p>
 <ul>
 <li>accepting supported C syntax</li>
 <li>building an AST</li>
@@ -2625,8 +2781,8 @@ Treat Tier 3 as implementation detail unless you are actively contributing to PA
 <li>mapping parse positions back through preprocessor line markers</li>
 </ul>
 <p>That is the core boundary of the crate.</p>
-<h2 id="pac-does-not-own-full-compilation"><a class="header" href="#pac-does-not-own-full-compilation">PAC does not own full compilation</a></h2>
-<p>PAC does not attempt to be:</p>
+<h2 id="parc-does-not-own-full-compilation"><a class="header" href="#parc-does-not-own-full-compilation">PARC does not own full compilation</a></h2>
+<p>PARC does not attempt to be:</p>
 <ul>
 <li>a full preprocessor implementation</li>
 <li>a type checker</li>
@@ -2639,10 +2795,10 @@ Treat Tier 3 as implementation detail unless you are actively contributing to PA
 <p>A healthy toolchain boundary looks like this:</p>
 <ol>
 <li>a compiler or preprocessor produces acceptable input</li>
-<li>PAC parses it</li>
+<li>PARC parses it</li>
 <li>a later layer performs semantic analysis, policy checks, or code generation</li>
 </ol>
-<p>This keeps PAC focused on syntax and source structure.</p>
+<p>This keeps PARC focused on syntax and source structure.</p>
 <h2 id="why-this-matters-for-consumers"><a class="header" href="#why-this-matters-for-consumers">Why this matters for consumers</a></h2>
 <p>If a downstream tool needs:</p>
 <ul>
@@ -2651,12 +2807,12 @@ Treat Tier 3 as implementation detail unless you are actively contributing to PA
 <li>semantic type equivalence</li>
 <li>macro inventories as data</li>
 </ul>
-<p>then PAC should be one component in the pipeline, not the whole pipeline.</p>
+<p>then PARC should be one component in the pipeline, not the whole pipeline.</p>
 <h2 id="why-this-matters-for-contributors"><a class="header" href="#why-this-matters-for-contributors">Why this matters for contributors</a></h2>
-<p>When deciding whether a new feature belongs in PAC, a useful question is:</p>
-<p>“Does this improve PAC’s syntax parsing and source-structure contract, or does it drag PAC into a
+<p>When deciding whether a new feature belongs in PARC, a useful question is:</p>
+<p>“Does this improve PARC’s syntax parsing and source-structure contract, or does it drag PARC into a
 later compiler stage?”</p>
-<p>If it is mostly a later-stage concern, it probably belongs outside PAC.</p>
+<p>If it is mostly a later-stage concern, it probably belongs outside PARC.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="release-checklist"><a class="header" href="#release-checklist">Release Checklist</a></h1>
 <p>This chapter is a pragmatic checklist for documentation and parser changes before a release.</p>
@@ -2708,12 +2864,68 @@ work, not library coupling</li>
 <ul>
 <li><code>make build</code> passes</li>
 <li><code>make test</code> passes</li>
+<li>the canonical hardening surfaces are still green
+<ul>
+<li>vendored musl <code>stdint</code></li>
+<li>vendored zlib</li>
+<li>vendored libpng scan</li>
+<li>OpenSSL public wrapper extraction</li>
+<li>combined Linux event-loop wrapper extraction</li>
+</ul>
+</li>
+<li>deterministic repeated extraction still holds on the canonical large surfaces</li>
 <li>the book still teaches <code>parc</code> as the source-meaning crate</li>
 <li>unsupported or partial source behavior is still documented honestly</li>
 </ul>
 <h2 id="final-practical-rule"><a class="header" href="#final-practical-rule">Final practical rule</a></h2>
-<p>If a change would force a downstream PAC consumer to rethink how it parses, traverses, or reports
+<p>If a change would force a downstream PARC consumer to rethink how it parses, traverses, or reports
 on source, the book should say so explicitly in the same change.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="readiness-scorecard"><a class="header" href="#readiness-scorecard">Readiness Scorecard</a></h1>
+<p>This chapter ties PARC readiness to real suites instead of vague confidence
+claims.</p>
+<h2 id="overall-posture"><a class="header" href="#overall-posture">Overall Posture</a></h2>
+<p>PARC should currently be read as:</p>
+<ul>
+<li>strong on parser and extraction fundamentals</li>
+<li>strong on scan-first vendored baselines</li>
+<li>materially stronger on hostile real-world builtin-preprocessor corners</li>
+<li>intentionally conservative when a large header family cannot be modeled
+honestly</li>
+</ul>
+<p>That is good progress, but it is not the same thing as “finished for every C
+header in the wild”.</p>
+<h2 id="subsystem-scorecard"><a class="header" href="#subsystem-scorecard">Subsystem Scorecard</a></h2>
+<ul>
+<li>parser entrypoints: high</li>
+<li>AST traversal and printing: high</li>
+<li>extraction to <code>SourcePackage</code>: high</li>
+<li>scan-first vendored baselines: high</li>
+<li>hostile-header recovery: medium-high</li>
+<li>built-in preprocessor coverage on ugly system headers: medium-high</li>
+<li>large host-dependent wrapper extraction: medium-high</li>
+<li>deterministic behavior on canonical large surfaces: high</li>
+</ul>
+<h2 id="canonical-readiness-anchors"><a class="header" href="#canonical-readiness-anchors">Canonical Readiness Anchors</a></h2>
+<p>The release posture should be judged against these anchors first:</p>
+<ul>
+<li>vendored musl <code>stdint</code></li>
+<li>vendored zlib</li>
+<li>vendored libpng scan</li>
+<li>OpenSSL public wrapper extraction</li>
+<li>combined Linux event-loop wrapper extraction</li>
+</ul>
+<p>If those anchors stay green and deterministic, PARC is earning trust. If they
+drift, the scorecard should be lowered even if many smaller tests still pass.</p>
+<h2 id="what-would-raise-readiness-further"><a class="header" href="#what-would-raise-readiness-further">What Would Raise Readiness Further</a></h2>
+<p>The next meaningful gains would be:</p>
+<ul>
+<li>broader built-in-preprocessor coverage on other hostile width and platform
+gates beyond the libpng family</li>
+<li>more ugly combined system-header clusters</li>
+<li>more repeat-run deterministic scans on large host-dependent surfaces</li>
+<li>clearer unsupported-case diagnostics for the remaining difficult families</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="migration-from-bic"><a class="header" href="#migration-from-bic">Migration From bic</a></h1>
 <p>This chapter documents how to migrate downstream consumers from <code>bic</code>’s frontend extraction

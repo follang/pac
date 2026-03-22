@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7851b8d0.js";
+            window.path_to_searchindex_js = "searchindex-75159a9b.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-faeb9e03.js"></script>
+        <script src="toc-6cd1cca1.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -183,10 +183,17 @@ three things:</p>
 <li>cross-package composition can start from <code>parc</code> artifacts without relying on
 <code>parc</code> internals</li>
 </ul>
-<p>PAC has two broad testing layers:</p>
+<p>PARC has two broad testing layers:</p>
 <ul>
 <li>direct parser/API tests in <code>src/tests</code></li>
 <li>corpus-style fixtures under <code>test/reftests/</code> and, when present, <code>test/full_apps/</code></li>
+</ul>
+<p>It also now has explicit grouped failure suites:</p>
+<ul>
+<li><code>failure_matrix_preprocess</code> for scan/preprocessor hard failures and
+conservative scan outcomes</li>
+<li><code>failure_matrix_source</code> for source-parse hard failures, resilient recovery,
+and diagnostic-preserving extraction</li>
 </ul>
 <h2 id="basic-commands"><a class="header" href="#basic-commands">Basic commands</a></h2>
 <p>The repository <code>Makefile</code> wraps the normal Cargo flow:</p>
@@ -198,6 +205,17 @@ make test
 <li><code>cargo build --release</code></li>
 <li><code>cargo test</code></li>
 </ul>
+<h2 id="hermeticity-split"><a class="header" href="#hermeticity-split">Hermeticity split</a></h2>
+<p>The large PARC surfaces should be read in three groups:</p>
+<ul>
+<li>always-on hermetic baselines</li>
+<li>host-dependent but high-value ladders</li>
+<li>hostile or conservative-failure surfaces</li>
+</ul>
+<p>The hermetic baselines should remain the default confidence floor. The
+host-dependent ladders should strengthen confidence when available. The failure
+surfaces should prove that PARC stays diagnostic and deterministic when it
+cannot fully model a header family yet.</p>
 <h2 id="contract-tests"><a class="header" href="#contract-tests">Contract tests</a></h2>
 <p>Contract tests are the tests a downstream toolchain should treat as the main
 statement of support:</p>
@@ -292,7 +310,7 @@ structs, extreme enum values, forward-then-define patterns, etc.</p>
 Uses both strict parsing (error expected) and resilient parsing (recovery expected).</p>
 <h2 id="contract-tests-1"><a class="header" href="#contract-tests-1">Contract tests</a></h2>
 <p><code>src/tests/contract.rs</code> and <code>src/tests/consumability.rs</code> verify that the <code>SourcePackage</code>
-contract is sufficient for downstream consumers. These test iteration patterns, type
+contract is sufficient for downstream consumers. These tests cover iteration patterns, type
 navigation, serialization, filtering, merging, and programmatic construction.</p>
 <h2 id="differential-tests"><a class="header" href="#differential-tests">Differential tests</a></h2>
 <p><code>src/tests/differential.rs</code> documents the known differences between parc extraction and

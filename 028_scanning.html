@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7851b8d0.js";
+            window.path_to_searchindex_js = "searchindex-75159a9b.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-faeb9e03.js"></script>
+        <script src="toc-6cd1cca1.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -175,8 +175,9 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="header-scanning"><a class="header" href="#header-scanning">Header Scanning</a></h1>
-<p>The <code>parc::scan</code> module provides end-to-end header scanning: preprocess
-C headers and extract a <code>SourcePackage</code> in one step.</p>
+<p><code>parc::scan</code> is the highest-level PARC API for people who want the source
+contract, not just the AST. It preprocesses headers, parses them, extracts
+items, and returns a <code>SourcePackage</code> plus the preprocessed source text.</p>
 <h2 id="quick-start"><a class="header" href="#quick-start">Quick Start</a></h2>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
@@ -191,6 +192,17 @@ let config = ScanConfig::new()
 let result = scan_headers(&amp;config).unwrap();
 let pkg = result.package;
 <span class="boring">}</span></code></pre>
+<h2 id="what-scan-really-owns"><a class="header" href="#what-scan-really-owns">What <code>scan</code> really owns</a></h2>
+<p>The scan path currently owns all of these steps:</p>
+<ol>
+<li>choose builtin or external preprocessing</li>
+<li>build the preprocessing environment</li>
+<li>parse the preprocessed translation unit</li>
+<li>extract declarations into <code>parc::ir</code></li>
+<li>attach input metadata and diagnostics</li>
+<li>optionally resolve typedef chains in the produced package</li>
+</ol>
+<p>That makes it the closest thing PARC has to a “source artifact producer”.</p>
 <h2 id="scanconfig"><a class="header" href="#scanconfig">ScanConfig</a></h2>
 <p>Builder for scan configuration:</p>
 <div class="table-wrapper">
@@ -214,8 +226,9 @@ let pkg = result.package;
 <p>Uses <code>gcc -E</code> or <code>clang -E</code> to preprocess headers. Requires the
 compiler to be installed. Supports all system headers.</p>
 <h3 id="built-in"><a class="header" href="#built-in">Built-in</a></h3>
-<p>Uses <code>parc::preprocess</code> for self-contained headers that don’t need
-system includes. No external compiler required.</p>
+<p>Uses <code>parc::preprocess</code> directly. This is useful for controlled fixtures and
+repo-local tests. It is not a promise that the built-in preprocessor already
+matches every hostile system-header stack.</p>
 <h2 id="scanresult"><a class="header" href="#scanresult">ScanResult</a></h2>
 <p>The scan produces:</p>
 <ul>
@@ -235,6 +248,15 @@ let input = PreprocessedInput::from_string("int foo(void);")
 
 let pkg = input.extract();
 <span class="boring">}</span></code></pre>
+<h2 id="what-to-expect-from-failures"><a class="header" href="#what-to-expect-from-failures">What to expect from failures</a></h2>
+<p><code>scan_headers()</code> can fail early on preprocessing setup problems, and it can
+also return a package with parse diagnostics if preprocessing succeeded but the
+source could not be fully parsed.</p>
+<p>That split is intentional:</p>
+<ul>
+<li>operational setup failures are <code>Err(...)</code></li>
+<li>source-level failures become <code>package.diagnostics</code> when possible</li>
+</ul>
 
                     </main>
 

@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7851b8d0.js";
+            window.path_to_searchindex_js = "searchindex-75159a9b.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-faeb9e03.js"></script>
+        <script src="toc-6cd1cca1.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -175,34 +175,36 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
-<p>This chapter is the shortest path from raw C source or headers to a PARC-owned
-source artifact.</p>
+<p>This chapter is the shortest path from real source or headers to something that
+PARC actually produces today: either a parsed AST or a <code>SourcePackage</code>.</p>
 <p>Read <code>parc</code> as the source frontend of the toolchain:</p>
 <ul>
 <li><code>parc</code> owns preprocessing, parsing, extraction, and source diagnostics</li>
 <li><code>linc</code> owns link and binary evidence</li>
-<li><code>gec</code> owns Rust lowering and emitted build output</li>
+<li><code>gerc</code> owns Rust lowering and emitted build output</li>
 </ul>
-<p>The boundary rule is strict: <code>parc/src/**</code> must not depend on <code>linc</code> or <code>gec</code>,
+<p>The boundary rule is strict: <code>parc/src/**</code> must not depend on <code>linc</code> or <code>gerc</code>,
 and any cross-package translation belongs only in tests, examples, or external
 harnesses.</p>
 <h2 id="add-the-crate"><a class="header" href="#add-the-crate">Add the crate</a></h2>
 <pre><code class="language-toml">[dependencies]
-parc = { path = "../pac" }
+parc = { path = "../parc" }
 </code></pre>
 <h2 id="pick-the-right-api-first"><a class="header" href="#pick-the-right-api-first">Pick the right API first</a></h2>
-<p>Use <code>parc::driver</code> when you have a file on disk and want PARC to run a system preprocessor first.</p>
+<p>Use <code>parc::driver</code> when you have a file on disk and want PARC to run a system
+preprocessor first.</p>
 <pre class="playground"><code class="language-rust">use parc::driver::{parse, Config};
 
 fn main() -&gt; Result&lt;(), parc::driver::Error&gt; {
     let config = Config::default();
-    let parsed = parse(&amp;config, "examples/sample.c")?;
+    let parsed = parse(&amp;config, "src/tests/files/minimal.c")?;
 
     println!("preprocessed bytes: {}", parsed.source.len());
     println!("top-level items: {}", parsed.unit.0.len());
     Ok(())
 }</code></pre>
-<p>Use <code>parc::parse</code> when you already have source text in memory and want to parse a fragment directly.</p>
+<p>Use <code>parc::parse</code> when you already have source text in memory and want to parse
+a fragment directly.</p>
 <pre class="playground"><code class="language-rust">use parc::driver::Flavor;
 use parc::parse;
 
@@ -237,12 +239,12 @@ fn main() {
 let gnu = Config::with_gcc();
 let clang = Config::with_clang();
 <span class="boring">}</span></code></pre>
-<h2 id="first-useful-example"><a class="header" href="#first-useful-example">First useful example</a></h2>
-<p>This example parses a translation unit and counts top-level entries:</p>
+<h2 id="first-useful-parse-example"><a class="header" href="#first-useful-parse-example">First useful parse example</a></h2>
+<p>This example parses a translation unit through the normal driver path:</p>
 <pre class="playground"><code class="language-rust">use parc::driver::{parse, Config};
 
 fn main() -&gt; Result&lt;(), parc::driver::Error&gt; {
-    let parsed = parse(&amp;Config::default(), "examples/header.h")?;
+    let parsed = parse(&amp;Config::default(), "src/tests/files/minimal.c")?;
 
     for (i, item) in parsed.unit.0.iter().enumerate() {
         println!("item #{i}: {:?}", item.node);
@@ -250,6 +252,19 @@ fn main() -&gt; Result&lt;(), parc::driver::Error&gt; {
 
     Ok(())
 }</code></pre>
+<h2 id="first-useful-scan-example"><a class="header" href="#first-useful-scan-example">First useful scan example</a></h2>
+<p>If what you really want is source IR rather than a raw AST, start with
+<code>parc::scan</code>:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use parc::scan::{scan_headers, ScanConfig};
+
+let config = ScanConfig::new().entry_header("demo.h");
+let result = scan_headers(&amp;config).unwrap();
+
+println!("items: {}", result.package.items.len());
+<span class="boring">}</span></code></pre>
+<p>This is the closest thing PARC has to a “frontend product” API.</p>
 <h2 id="first-fragment-example"><a class="header" href="#first-fragment-example">First fragment example</a></h2>
 <p>If you only need one declaration or statement, the direct parser API is faster to wire in:</p>
 <pre class="playground"><code class="language-rust">use parc::driver::Flavor;
@@ -264,8 +279,9 @@ fn main() {
 }</code></pre>
 <h2 id="what-to-read-next"><a class="header" href="#what-to-read-next">What to read next</a></h2>
 <ul>
-<li><a href="./015_workflows.html">Common Workflows</a> for choosing between <code>driver</code>, <code>parse_preprocessed</code>, and <code>parse</code></li>
+<li><a href="./015_workflows.html">Common Workflows</a> for choosing between <code>scan</code>, <code>driver</code>, <code>parse_preprocessed</code>, and <code>parse</code></li>
 <li><a href="./020_driver.html">Driver API</a> for preprocessing and file-based parsing</li>
+<li><a href="./028_scanning.html">Header Scanning</a> for source-contract-first workflows</li>
 <li><a href="./030_parser.html">Parser API</a> for fragment parsing</li>
 </ul>
 <h2 id="architectural-boundary"><a class="header" href="#architectural-boundary">Architectural boundary</a></h2>
@@ -286,7 +302,7 @@ fn main() {
 <li>Rust code generation</li>
 </ul>
 <p>In this repository, cross-package composition should not live in <code>parc</code> library
-code. <code>linc</code> and <code>gec</code> should consume <code>parc</code> output only from tests, examples,
+code. <code>linc</code> and <code>gerc</code> should consume <code>parc</code> output only from tests, examples,
 or external harnesses.</p>
 
                     </main>

@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Unsupported Cases - PARC Reference</title>
+        <title>Hardening Matrix - PARC Reference</title>
 
 
         <!-- Custom HTML head -->
@@ -174,76 +174,94 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="unsupported-cases"><a class="header" href="#unsupported-cases">Unsupported Cases</a></h1>
-<p>This chapter records the important unsupported or intentionally out-of-scope areas.</p>
-<p>The goal is to prevent downstream users from mistaking absence of detail for implicit support.</p>
-<h2 id="semantic-analysis"><a class="header" href="#semantic-analysis">Semantic analysis</a></h2>
-<p>PARC does not provide:</p>
+                        <h1 id="hardening-matrix"><a class="header" href="#hardening-matrix">Hardening Matrix</a></h1>
+<p>This chapter translates the large PARC test surface into an explicit hardening
+ladder.</p>
+<p>The important point is not “how many tests exist”. The important point is which
+surfaces are carrying confidence for real-header parsing, preprocessing, and
+source extraction.</p>
+<h2 id="how-to-read-the-matrix"><a class="header" href="#how-to-read-the-matrix">How To Read The Matrix</a></h2>
+<p>Read each surface on three axes:</p>
 <ul>
-<li>full name resolution</li>
-<li>type checking</li>
-<li>constant folding as a stable analysis contract</li>
-<li>ABI or layout proof</li>
-<li>compiler-quality warnings</li>
+<li>hermetic or host-dependent</li>
+<li>parser-only versus scan-first</li>
+<li>success path versus conservative failure path</li>
 </ul>
-<p>It is a parser with source-structure support, not a complete compiler frontend.</p>
-<h2 id="preprocessing"><a class="header" href="#preprocessing">Preprocessing</a></h2>
-<p>PARC does not implement a standalone C preprocessor in the <code>driver</code> path.</p>
-<p>Instead it depends on an external preprocessor command such as:</p>
+<p>A surface is stronger when it is:</p>
 <ul>
-<li><code>gcc -E</code></li>
-<li><code>clang -E</code></li>
+<li>hermetic</li>
+<li>scan-first</li>
+<li>repeated deterministically</li>
+<li>tied to a realistic system or library family</li>
 </ul>
-<p>That means PARC does not try to normalize every compiler’s preprocessing behavior internally.</p>
-<h2 id="extension-completeness"><a class="header" href="#extension-completeness">Extension completeness</a></h2>
-<p>PARC supports several GNU and Clang extensions, but the project does not promise complete parity
-with every extension accepted by modern GCC or Clang releases.</p>
-<p>Downstream tools should not assume:</p>
+<h2 id="tier-1-hermetic-canonical-baselines"><a class="header" href="#tier-1-hermetic-canonical-baselines">Tier 1: Hermetic Canonical Baselines</a></h2>
+<p>These are the first surfaces that should stay green on every machine:</p>
 <ul>
-<li>full GNU extension completeness</li>
-<li>full Clang extension completeness</li>
-<li>identical acceptance behavior across all compiler-version-specific syntax edges</li>
+<li>vendored musl <code>stdint</code></li>
+<li>vendored zlib</li>
+<li>vendored libpng builtin-preprocessor success path</li>
+<li>parser and extraction corpus fixtures under <code>src/tests/**</code></li>
 </ul>
-<h2 id="macro-inventory-and-expansion-modeling"><a class="header" href="#macro-inventory-and-expansion-modeling">Macro inventory and expansion modeling</a></h2>
-<p>PARC parses the post-preprocessing result. It does not expose a first-class macro inventory or a
-stable semantic model of macro definitions as its own output contract.</p>
-<p>If you need macro capture as data, that is outside PARC’s current scope.</p>
-<h2 id="translation-unit-semantics"><a class="header" href="#translation-unit-semantics">Translation-unit semantics</a></h2>
-<p>PARC can parse translation units, but it does not guarantee:</p>
+<p>These matter because they exercise:</p>
 <ul>
-<li>cross-file symbol resolution</li>
-<li>duplicate-definition analysis as a stable feature</li>
-<li>semantic correctness of declarations</li>
-<li>linkability of parsed declarations</li>
+<li>multi-header scanning</li>
+<li>macro and include handling</li>
+<li>extraction into <code>SourcePackage</code></li>
+<li>deterministic behavior without relying on the host toolchain layout</li>
 </ul>
-<p>Those tasks belong to later analysis layers, not the parser itself.</p>
-<h2 id="diagnostics-depth"><a class="header" href="#diagnostics-depth">Diagnostics depth</a></h2>
-<p>PARC does not currently provide:</p>
+<h2 id="tier-2-host-dependent-canonical-ladders"><a class="header" href="#tier-2-host-dependent-canonical-ladders">Tier 2: Host-Dependent Canonical Ladders</a></h2>
+<p>These should stay green on developer and CI hosts where the headers exist, but
+they are not the first portability baseline:</p>
 <ul>
-<li>warning classes</li>
-<li>fix-it suggestions</li>
-<li>rich categorized error codes</li>
-<li>a stable diagnostic JSON schema</li>
+<li>OpenSSL public wrapper extraction</li>
+<li>combined Linux event-loop wrapper extraction</li>
+<li>larger libc and system-header clusters</li>
 </ul>
-<p>The current error model is strong enough for syntax handling, not full compiler UX.</p>
-<h2 id="consumer-guidance"><a class="header" href="#consumer-guidance">Consumer guidance</a></h2>
-<p>Downstream tools should treat these gaps as explicit non-guarantees.</p>
-<p>That means:</p>
+<p>These surfaces matter because they are closer to the “real ugly header world”
+target than the small synthetic fixtures.</p>
+<h2 id="tier-3-hostile-and-conservative-failure-surfaces"><a class="header" href="#tier-3-hostile-and-conservative-failure-surfaces">Tier 3: Hostile And Conservative-Failure Surfaces</a></h2>
+<p>These prove that PARC is refusing or degrading honestly instead of pretending to
+understand everything:</p>
 <ul>
-<li>build policy around syntax success and failure, not semantic certainty</li>
-<li>isolate extension-heavy assumptions behind tests</li>
-<li>keep representative preprocessed fixtures for any hard parser dependency</li>
+<li>hostile declaration fixtures</li>
+<li>recovery fixtures</li>
+<li>unsupported or partial declaration families that still emit diagnostics and
+partial metadata</li>
 </ul>
+<p>For release purposes, these failures are good when they are:</p>
+<ul>
+<li>deterministic</li>
+<li>diagnostic</li>
+<li>documented</li>
+</ul>
+<h2 id="determinism-anchors"><a class="header" href="#determinism-anchors">Determinism Anchors</a></h2>
+<p>The most important repeat-run anchors right now are:</p>
+<ul>
+<li>vendored musl scan</li>
+<li>vendored zlib scan</li>
+<li>vendored libpng scan</li>
+<li>OpenSSL wrapper extraction</li>
+<li>combined Linux event-loop wrapper extraction</li>
+</ul>
+<p>If any of those become unstable, the release posture should drop immediately.</p>
+<h2 id="what-this-matrix-does-not-mean"><a class="header" href="#what-this-matrix-does-not-mean">What This Matrix Does Not Mean</a></h2>
+<p>This matrix does not mean:</p>
+<ul>
+<li>every random system library now parses perfectly</li>
+<li>every preprocessor corner is solved</li>
+<li>every large host-dependent surface is equally mature</li>
+</ul>
+<p>It means the current confidence ladder is explicit instead of implied.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="130_flavor_and_extension_support.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="180_support_tiers.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="150_reproducibility.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="190_parser_boundaries.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -253,11 +271,11 @@ stable semantic model of macro definitions as its own output contract.</p>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="130_flavor_and_extension_support.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="180_support_tiers.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="150_reproducibility.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="190_parser_boundaries.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

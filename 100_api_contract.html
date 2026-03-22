@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7851b8d0.js";
+            window.path_to_searchindex_js = "searchindex-75159a9b.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-faeb9e03.js"></script>
+        <script src="toc-6cd1cca1.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -190,11 +190,12 @@ source-level semantic extraction.</p>
 <li>consume the <code>SourcePackage</code> IR from <code>ir</code></li>
 <li>use <code>visit</code>, <code>span</code>, and <code>loc</code> to analyze AST-level details if needed</li>
 </ol>
-<p>Downstream consumers should depend on <code>parc::ir</code>, not on <code>parc::ast</code> directly.</p>
+<p>Downstream consumers that want source contracts should depend on <code>parc::ir</code>,
+not on <code>parc::ast</code> directly.</p>
 <p>More importantly for this repository:</p>
 <ul>
-<li><code>parc</code> library code must not depend on <code>linc</code> or <code>gec</code></li>
-<li><code>linc</code> and <code>gec</code> should not require <code>parc</code> as a library dependency in their
+<li><code>parc</code> library code must not depend on <code>linc</code> or <code>gerc</code></li>
+<li><code>linc</code> and <code>gerc</code> should not require <code>parc</code> as a library dependency in their
 production code paths</li>
 <li>integration should happen through PARC-owned artifacts in tests/examples or
 external harnesses</li>
@@ -243,7 +244,7 @@ implementation details rather than the intended library boundary.</p>
 <li>use <code>visit</code> for traversal instead of hand-rolling recursive descent everywhere</li>
 <li>use <code>span</code> and <code>loc</code> for diagnostics rather than guessing source positions</li>
 <li>do not rely on exact error-message strings for durable control flow</li>
-<li>do not treat PAC as semantic analysis, type checking, or ABI proof</li>
+<li>do not treat PARC as semantic analysis, type checking, or ABI proof</li>
 <li>if another crate needs PARC output, serialize the PARC-owned artifact and
 translate it outside library code</li>
 </ol>
@@ -263,6 +264,14 @@ translate it outside library code</li>
 <li>the span/location model under <code>span</code> and <code>loc</code></li>
 </ul>
 <p>Those are the surfaces the rest of the book assumes consumers will use.</p>
+<p>The important correction is this: PARC has two practical contracts today, not
+one:</p>
+<ol>
+<li>a source-contract path centered on <code>ir</code>, <code>extract</code>, and <code>scan</code></li>
+<li>a parser-facing path centered on <code>driver</code>, <code>parse</code>, <code>ast</code>, and <code>visit</code></li>
+</ol>
+<p>The docs should not pretend the AST side does not exist, because the crate
+very much exposes it.</p>
 <h2 id="what-is-intentionally-weaker"><a class="header" href="#what-is-intentionally-weaker">What is intentionally weaker</a></h2>
 <p>The following should be treated as less stable than the core parsing surface:</p>
 <ul>

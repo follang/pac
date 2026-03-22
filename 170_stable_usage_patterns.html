@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-7851b8d0.js";
+            window.path_to_searchindex_js = "searchindex-75159a9b.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-faeb9e03.js"></script>
+        <script src="toc-6cd1cca1.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -179,11 +179,11 @@
 <h2 id="pattern-1-separate-parsing-from-analysis"><a class="header" href="#pattern-1-separate-parsing-from-analysis">Pattern 1: Separate parsing from analysis</a></h2>
 <p>A durable integration pattern is:</p>
 <ol>
-<li>parse with PAC</li>
+<li>parse with PARC</li>
 <li>convert the AST into your own analysis model if needed</li>
 <li>run later semantic or policy logic on that model</li>
 </ol>
-<p>This avoids coupling too much of your tool to every detail of PAC’s raw AST layout.</p>
+<p>This avoids coupling too much of your tool to every detail of PARC’s raw AST layout.</p>
 <h2 id="pattern-2-preserve-preprocessed-source-for-diagnostics"><a class="header" href="#pattern-2-preserve-preprocessed-source-for-diagnostics">Pattern 2: Preserve preprocessed source for diagnostics</a></h2>
 <p>If you use <code>driver</code>, keep <code>Parse::source</code> around as long as you may need diagnostics.</p>
 <p>That enables:</p>
