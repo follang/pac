@@ -2,15 +2,15 @@
 
 [![Documentation](https://docs.rs/parc/badge.svg)](https://docs.rs/parc)
 
-PARC is a C language frontend: preprocessing, parsing, header scanning, and
-source-level semantic extraction.
+PARC is the source-meaning layer of the pipeline: preprocessing, parsing,
+header scanning, and source-level semantic extraction.
 
 In the intended repository architecture, `parc` owns source meaning only.
 
 - `parc` library code does not depend on `linc` or `gec`
 - `parc` emits a PARC-owned source artifact
-- downstream crates may consume that artifact in tests, examples, or external
-  harnesses
+- downstream crates may consume that artifact only in tests, examples, or
+  external harnesses
 - there is no shared ABI crate and no library-level cross-package adapter
 
 ```rust
@@ -56,6 +56,9 @@ Cross-package integration belongs outside `parc` library code. If `linc` or
 - external integration harnesses
 
 Never in `parc/src/**`.
+
+That rule is the main architectural guarantee: `parc` produces source
+artifacts, but it does not own downstream link or generation concerns.
 
 The parser implementation lives under `src/parser/` and is maintained directly in Rust.
 There is no external PEG generation step in the build anymore.

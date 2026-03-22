@@ -2,12 +2,15 @@
 
 This chapter records the intended public consumer surface of `parc`.
 
-It is not a blanket promise about every future change. It is the current explicit guidance for how
-downstream tools should integrate with the crate without depending on internal parser details.
+It is not a blanket promise about every future change. It is the current
+guidance for how downstream tools should integrate with the crate without
+depending on parser internals or accidentally turning `parc` into a shared ABI
+owner for the rest of the pipeline.
 
 ## First Principle
 
-`parc` is a C language frontend: preprocessing, parsing, and source-level semantic extraction.
+`parc` is the source-meaning layer of the pipeline: preprocessing, parsing, and
+source-level semantic extraction.
 
 The intended downstream pattern is:
 
@@ -26,6 +29,7 @@ More importantly for this repository:
 - integration should happen through PARC-owned artifacts in tests/examples or
   external harnesses
 - there is no shared ABI crate that all three libraries depend on
+- there is no obligation to preserve discarded pipeline shapes for backward compatibility
 
 ## Preferred public surface
 
@@ -112,7 +116,7 @@ The current contract does not promise:
 - full support for every GCC or Clang extension
 - preservation of raw macro definitions beyond what `capture_macros` provides
 
-Those are outside the scope of PAC as a parser library.
+Those are outside the scope of PARC as a source frontend.
 
 ## Downstream posture
 
@@ -123,4 +127,5 @@ For long-lived integrations, the safest posture is:
 3. use `driver` and `parse` only when you need AST-level access
 4. treat unsupported syntax and parser errors as normal outcomes
 5. keep tests with representative preprocessed inputs for the syntax families you depend on
-6. see [Migration From bic](./210_migration_from_bic.md) if you are transitioning from `bic`
+6. keep cross-package translation in tests/examples/harnesses rather than adding library dependencies
+7. see [Migration From bic](./210_migration_from_bic.md) if you are transitioning from `bic`
