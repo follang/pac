@@ -18,6 +18,9 @@ pub fn builtin_headers() -> HashMap<String, String> {
     headers.insert("stddef.h".into(), STDDEF_H.into());
     headers.insert("stdbool.h".into(), STDBOOL_H.into());
     headers.insert("limits.h".into(), LIMITS_H.into());
+    headers.insert("stdarg.h".into(), STDARG_H.into());
+    headers.insert("sys/types.h".into(), SYS_TYPES_H.into());
+    headers.insert("unistd.h".into(), UNISTD_H.into());
     headers
 }
 
@@ -158,6 +161,51 @@ const LIMITS_H: &str = r#"
 #endif /* _PAC_LIMITS_H */
 "#;
 
+const STDARG_H: &str = r#"
+#ifndef _PAC_STDARG_H
+#define _PAC_STDARG_H 1
+
+typedef char *va_list;
+
+#define va_start(ap, last) ((void)0)
+#define va_arg(ap, type) (*(type *)0)
+#define va_end(ap) ((void)0)
+#define va_copy(dest, src) ((void)0)
+
+#endif /* _PAC_STDARG_H */
+"#;
+
+const SYS_TYPES_H: &str = r#"
+#ifndef _PAC_SYS_TYPES_H
+#define _PAC_SYS_TYPES_H 1
+
+#include <stddef.h>
+#include <stdint.h>
+
+#if __SIZEOF_LONG__ == 8
+typedef long off_t;
+typedef long ssize_t;
+#else
+typedef long long off_t;
+typedef int ssize_t;
+#endif
+
+#endif /* _PAC_SYS_TYPES_H */
+"#;
+
+const UNISTD_H: &str = r#"
+#ifndef _PAC_UNISTD_H
+#define _PAC_UNISTD_H 1
+
+#include <sys/types.h>
+
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
+#endif /* _PAC_UNISTD_H */
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::builtin_headers;
@@ -170,5 +218,17 @@ mod tests {
         assert!(limits.contains("CHAR_BIT"));
         assert!(limits.contains("INT_MAX"));
         assert!(limits.contains("ULONG_MAX"));
+    }
+
+    #[test]
+    fn builtin_headers_include_zlib_baseline_headers() {
+        let headers = builtin_headers();
+        let stdarg = headers.get("stdarg.h").expect("stdarg.h builtin");
+        let sys_types = headers.get("sys/types.h").expect("sys/types.h builtin");
+        let unistd = headers.get("unistd.h").expect("unistd.h builtin");
+        assert!(stdarg.contains("va_list"));
+        assert!(sys_types.contains("off_t"));
+        assert!(unistd.contains("SEEK_SET"));
+        assert!(unistd.contains("#include <sys/types.h>"));
     }
 }

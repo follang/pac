@@ -167,7 +167,7 @@ fn preprocess_builtin(config: &ScanConfig) -> Result<(String, String), ScanError
     let mut processor = Processor::with_macros(table);
     let mut resolver = IncludeResolver::new();
 
-    // Register built-in standard headers (stdint.h, stddef.h, stdbool.h)
+    // Register built-in baseline headers before searching the filesystem.
     resolver.register_builtin_headers(builtin_headers());
 
     // Add user include dirs (searchable for both "..." and <...> includes)
@@ -634,6 +634,34 @@ intptr_t get_handle(void);
         assert!(pkg.find_function("diff").is_some(), "missing diff");
         assert!(pkg.find_type_alias("size_t").is_some());
         assert!(pkg.find_type_alias("ptrdiff_t").is_some());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn scan_builtin_stdarg_and_unistd_baseline() {
+        let dir = std::env::temp_dir().join("parc_scan_builtin_stdarg_unistd");
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(
+            dir.join("api.h"),
+            "#include <stdarg.h>\n#include <sys/types.h>\n#include <unistd.h>\ntypedef off_t stream_off_t;\nint seek_to(stream_off_t offset, int whence);\nint format_line(const char *fmt, va_list ap);\n",
+        )
+        .unwrap();
+
+        let config = ScanConfig::new()
+            .entry_header(dir.join("api.h"))
+            .with_builtin_preprocessor();
+
+        let result = scan_headers(&config).expect("scan with stdarg/sys/types/unistd succeeds");
+        let pkg = &result.package;
+
+        assert!(pkg.find_type_alias("off_t").is_some());
+        assert!(pkg.find_type_alias("ssize_t").is_some());
+        assert!(pkg.find_type_alias("stream_off_t").is_some());
+        assert!(pkg.find_function("seek_to").is_some());
+        assert!(pkg.find_function("format_line").is_some());
+        assert!(result.preprocessed_source.contains("va_list"));
+        assert!(result.preprocessed_source.contains("stream_off_t"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }
