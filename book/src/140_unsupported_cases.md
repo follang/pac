@@ -1,8 +1,37 @@
 # Unsupported Cases
 
-This chapter records the important unsupported or intentionally out-of-scope areas.
+This chapter records the important unsupported or intentionally out-of-scope
+areas.
 
-The goal is to prevent downstream users from mistaking absence of detail for implicit support.
+The goal is to prevent downstream users from mistaking absence of detail for
+implicit support.
+
+It also acts as the current frontend-family closure ledger. Every hard family
+should fit into one of these buckets:
+
+- fully supported
+- resilient-only support
+- diagnostics-only improvement
+- intentional rejection
+
+## Frontend-Family Closure Ledger
+
+The current important families are:
+
+| Family | Current state | Notes |
+| --- | --- | --- |
+| K&R function declarations | diagnostics-only improvement | PARC preserves the function surface and emits explicit unsupported diagnostics. |
+| block pointers | intentional rejection | They still fail in parsing; current work is about sharper diagnostics, not pretending they lower cleanly. |
+| bitfield-heavy records | resilient-only support | PARC keeps record shape and bit widths, but layout truth remains partial. |
+| vendor attributes and calling-convention attributes | resilient-only support | PARC preserves the declaration and emits partial diagnostics when attributes are ignored. |
+| macro-heavy include stacks | fully supported on current canonical corpora | The canonical corpora are the proof surface; more corpora still need to land before claiming broad closure. |
+| hostile include-order and typedef-chain environments | fully supported on current canonical corpora | Treat this as corpus-backed support, not universal extension parity. |
+
+This ledger is intentionally blunt:
+
+- if a family is not yet honestly representable, reject it
+- if a family is only partially representable, say so
+- if a family is only proven on named corpora, document that exact scope
 
 ## Semantic analysis
 
@@ -25,12 +54,17 @@ Instead it depends on an external preprocessor command such as:
 - `gcc -E`
 - `clang -E`
 
-That means PARC does not try to normalize every compiler’s preprocessing behavior internally.
+That means PARC does not try to normalize every compiler's preprocessing
+behavior internally.
+
+The built-in preprocessor is increasingly useful for scan-first workflows, but
+it is still a scoped compatibility surface rather than a promise of universal
+host-header parity.
 
 ## Extension completeness
 
-PARC supports several GNU and Clang extensions, but the project does not promise complete parity
-with every extension accepted by modern GCC or Clang releases.
+PARC supports several GNU and Clang extensions, but the project does not promise
+complete parity with every extension accepted by modern GCC or Clang releases.
 
 Downstream tools should not assume:
 
@@ -65,7 +99,15 @@ PARC does not currently provide:
 - rich categorized error codes
 - a stable diagnostic JSON schema
 
-The current error model is strong enough for syntax handling, not full compiler UX.
+The current error model is strong enough for syntax handling, not full compiler
+UX.
+
+The practical rule for the remaining hard families is:
+
+- if PARC can keep a trustworthy declaration surface, it should do so and emit
+  diagnostics
+- if PARC cannot keep a trustworthy declaration surface, it should reject the
+  construct explicitly
 
 ## Consumer guidance
 
@@ -76,3 +118,5 @@ That means:
 - build policy around syntax success and failure, not semantic certainty
 - isolate extension-heavy assumptions behind tests
 - keep representative preprocessed fixtures for any hard parser dependency
+- treat the closure ledger above as part of the real contract, not as a vague
+  future roadmap

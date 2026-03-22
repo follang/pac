@@ -124,6 +124,8 @@ The current hardening ladder is easiest to read in four buckets:
   - hostile declaration fixtures
   - repo-owned `macro_env_a` hostile macro corpus
   - repo-owned `type_env_b` hostile type corpus
+  - explicit unsupported-family closure ledger for K&R, block pointers,
+    bitfield-heavy records, and vendor attributes
   - resilient recovery fixtures
   - explicit preprocess failure matrix
   - explicit source refusal and recovery matrix
